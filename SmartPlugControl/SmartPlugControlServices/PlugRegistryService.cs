@@ -40,6 +40,11 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         // a full re-discovery first. Rebuilt wholesale on every RefreshAsync.
         private Dictionary<string, IPlugDriver> driversByPlugId = new Dictionary<string, IPlugDriver>();
 
+        // Drivers are rebuilt from scratch every RefreshAsync, so a driver's own internal "does this
+        // support energy monitoring" cache resets every cycle too - this persists that finding across
+        // refreshes instead, so an unsupported plug (most models) isn't re-queried every poll forever.
+        private readonly HashSet<string> knownPowerUnsupportedPlugIds = new HashSet<string>();
+
         [ImportingConstructor]
         public PlugRegistryService(IProfileService profileService) : this(profileService, new TpLinkCloudClient(), new KasaCloudPassthroughClient()) {
         }
@@ -98,26 +103,41 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                         continue;
                     }
 
+                    // LED state is a whole-device setting, not per-socket (confirmed on real KP303
+                    // hardware - see KasaCloudPlugDriver) - query it once per physical device instead
+                    // of once per child driver, to avoid N identical redundant calls on a power strip.
+                    bool deviceSupportsLed = false;
+                    bool? deviceIsLedOn = null;
+                    if (deviceDrivers.Count > 0) {
+                        try {
+                            deviceSupportsLed = await deviceDrivers[0].SupportsLedAsync(token);
+                            if (deviceSupportsLed) {
+                                deviceIsLedOn = await deviceDrivers[0].IsLedOnAsync(token);
+                            }
+                        } catch (Exception) {
+                            // Leave LED state unknown for this device this cycle.
+                        }
+                    }
+
                     foreach (var driver in deviceDrivers) {
                         newDrivers[driver.PlugId] = driver;
                         var data = persisted.TryGetValue(driver.PlugId, out var d) ? d : new PlugPersistedData { PlugId = driver.PlugId };
 
                         bool? isOn = null;
-                        bool supportsLed = false;
-                        bool? isLedOn = null;
                         PlugPowerReading power = null;
                         try {
                             isOn = await driver.IsOnAsync(token);
-                            supportsLed = await driver.SupportsLedAsync(token);
-                            if (supportsLed) {
-                                isLedOn = await driver.IsLedOnAsync(token);
+                            if (!knownPowerUnsupportedPlugIds.Contains(driver.PlugId)) {
+                                power = await driver.GetPowerAsync(token);
+                                if (power == null) {
+                                    knownPowerUnsupportedPlugIds.Add(driver.PlugId);
+                                }
                             }
-                            power = await driver.GetPowerAsync(token);
                         } catch (Exception) {
                             // Device went offline between discovery and polling - leave state unknown.
                         }
 
-                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power, supportsLed, isLedOn));
+                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power, deviceSupportsLed, deviceIsLedOn));
                     }
                 }
 
