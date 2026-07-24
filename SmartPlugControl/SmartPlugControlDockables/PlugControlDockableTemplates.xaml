@@ -31,7 +31,7 @@
 
             <TextBlock Grid.Row="1" Margin="0,0,0,5">
                 <Run Text="Total consumption: " />
-                <Run Text="{Binding TotalWatts, StringFormat={}{0:F1} W}" />
+                <Run Text="{Binding TotalWatts, Mode=OneWay, StringFormat={}{0:F1} W}" />
             </TextBlock>
 
             <DataGrid

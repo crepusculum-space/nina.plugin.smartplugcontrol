@@ -32,11 +32,21 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
             this.registry = registry;
 
             Title = "Smart Plug Control";
+            IsVisible = true;
             try {
                 var dict = new ResourceDictionary {
                     Source = new Uri("Crepusculum.NINA.SmartPlugControl;component/SmartPlugControlDockables/PlugControlDockableTemplates.xaml", UriKind.Relative)
                 };
-                ImageGeometry = (GeometryGroup)dict["Crepusculum.NINA.SmartPlugControl_PlugIconSVG"];
+                var icon = (GeometryGroup)dict["Crepusculum.NINA.SmartPlugControl_PlugIconSVG"];
+                // GeometryGroup is a Freezable/DependencyObject - it's built here in the VM's
+                // constructor, which MEF may run on a composition thread rather than the UI thread.
+                // Freezing makes it thread-independent; without this, WPF throws "Must create
+                // DependencySource on same Thread as the DependencyObject" the first time the panel
+                // is actually rendered on the UI thread.
+                if (icon.CanFreeze) {
+                    icon.Freeze();
+                }
+                ImageGeometry = icon;
             } catch (Exception) {
                 // Non-fatal - the panel still works without a custom tab icon.
             }
