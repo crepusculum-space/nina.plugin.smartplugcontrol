@@ -33,6 +33,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private readonly SemaphoreSlim refreshLock = new SemaphoreSlim(1, 1);
 
         private IPluginOptionsAccessor pluginSettings;
+        private List<PlugViewModel> allPlugs = new List<PlugViewModel>();
         private List<PlugViewModel> plugs = new List<PlugViewModel>();
 
         // Kept across refreshes so the UI/sequencer can act on a plug (on/off/LED) without triggering
@@ -52,6 +53,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         }
 
         public IReadOnlyList<PlugViewModel> Plugs => plugs;
+        public IReadOnlyList<PlugViewModel> AllPlugs => allPlugs;
 
         private void ProfileService_ProfileChanged(object sender, EventArgs e) {
             pluginSettings = new PluginOptionsAccessor(profileService, PluginGuid);
@@ -120,7 +122,8 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 }
 
                 driversByPlugId = newDrivers;
-                plugs = newPlugs;
+                allPlugs = newPlugs;
+                plugs = newPlugs.Where(p => p.IsVisibleInNina).ToList();
             } finally {
                 refreshLock.Release();
             }
@@ -133,6 +136,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 Brand = device.Brand,
                 EquipmentName = data.EquipmentName,
                 IsProtected = data.IsProtected,
+                IsVisibleInNina = data.IsVisibleInNina,
                 IsOn = isOn,
                 SupportsLed = supportsLed,
                 IsLedOn = isLedOn,
@@ -149,7 +153,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             entry.EquipmentName = equipmentName ?? string.Empty;
             SavePersistedData(data);
 
-            var plug = plugs.FirstOrDefault(p => p.PlugId == plugId);
+            // allPlugs and plugs share the same PlugViewModel instances (plugs is a filtered view over
+            // allPlugs), so mutating the one found here is visible through either list.
+            var plug = allPlugs.FirstOrDefault(p => p.PlugId == plugId);
             if (plug != null) {
                 plug.EquipmentName = entry.EquipmentName;
             }
@@ -164,10 +170,27 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             entry.IsProtected = isProtected;
             SavePersistedData(data);
 
-            var plug = plugs.FirstOrDefault(p => p.PlugId == plugId);
+            var plug = allPlugs.FirstOrDefault(p => p.PlugId == plugId);
             if (plug != null) {
                 plug.IsProtected = isProtected;
             }
+        }
+
+        public void SetVisibleInNina(string plugId, bool visible) {
+            var data = LoadPersistedData();
+            if (!data.TryGetValue(plugId, out var entry)) {
+                entry = new PlugPersistedData { PlugId = plugId };
+                data[plugId] = entry;
+            }
+            entry.IsVisibleInNina = visible;
+            SavePersistedData(data);
+
+            var plug = allPlugs.FirstOrDefault(p => p.PlugId == plugId);
+            if (plug != null) {
+                plug.IsVisibleInNina = visible;
+            }
+            // Membership in the filtered list changes, not just a property - recompute it.
+            plugs = allPlugs.Where(p => p.IsVisibleInNina).ToList();
         }
 
         public Task TurnOnAsync(string plugId, CancellationToken token = default) =>
@@ -179,17 +202,23 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         public Task SetLedAsync(string plugId, bool on, CancellationToken token = default) =>
             GetDriverOrThrow(plugId).SetLedAsync(on, token);
 
+        // These bulk actions deliberately iterate `plugs` (visible only), not every discovered device
+        // on the TP-Link account (`allPlugs`/`driversByPlugId`) - the account may include plugs
+        // unrelated to the observatory (e.g. a home TV/printer) that the user has hidden precisely so
+        // "Turn On/Off All" never touches them.
         public async Task TurnOnAllAsync(CancellationToken token = default) {
-            foreach (var driver in driversByPlugId.Values) {
+            foreach (var plugId in plugs.Select(p => p.PlugId)) {
+                if (!driversByPlugId.TryGetValue(plugId, out var driver)) {
+                    continue;
+                }
                 token.ThrowIfCancellationRequested();
                 await driver.TurnOnAsync(token);
             }
         }
 
         public async Task TurnOffAllAsync(CancellationToken token = default) {
-            var protectedPlugIds = plugs.Where(p => p.IsProtected).Select(p => p.PlugId).ToHashSet();
-            foreach (var (plugId, driver) in driversByPlugId) {
-                if (protectedPlugIds.Contains(plugId)) {
+            foreach (var plug in plugs) {
+                if (plug.IsProtected || !driversByPlugId.TryGetValue(plug.PlugId, out var driver)) {
                     continue;
                 }
                 token.ThrowIfCancellationRequested();
@@ -198,7 +227,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         }
 
         public async Task SetAllLedsAsync(bool on, CancellationToken token = default) {
-            foreach (var driver in driversByPlugId.Values) {
+            foreach (var plugId in plugs.Select(p => p.PlugId)) {
+                if (!driversByPlugId.TryGetValue(plugId, out var driver)) {
+                    continue;
+                }
                 token.ThrowIfCancellationRequested();
                 if (await driver.SupportsLedAsync(token)) {
                     await driver.SetLedAsync(on, token);

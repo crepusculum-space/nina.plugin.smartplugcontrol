@@ -14,6 +14,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
         public string EquipmentName { get; set; } = string.Empty;
         public bool IsProtected { get; set; }
+        public bool IsVisibleInNina { get; set; } = true;
 
         /// <summary>Null when the device hasn't been polled yet or the cloud relay call failed (offline, no driver, etc).</summary>
         public bool? IsOn { get; set; }

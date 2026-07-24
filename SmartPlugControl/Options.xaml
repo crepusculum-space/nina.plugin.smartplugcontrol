@@ -12,10 +12,28 @@
                 <TextBlock Text="TP-Link username/email" VerticalAlignment="Center" MinWidth="160" />
                 <TextBox MinWidth="200" Text="{Binding TpLinkUsername, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Text="TP-Link password" VerticalAlignment="Center" MinWidth="160" />
                 <TextBox MinWidth="200" Text="{Binding TpLinkPassword, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
+
+            <TextBlock Text="Plugs on this account - only checked plugs show up in the equipment page and sequencer:" Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500" />
+            <Button Content="Refresh Plug List" Command="{Binding RefreshPlugsCommand}" HorizontalAlignment="Left" Padding="8,4" Margin="0,0,0,5" />
+            <DataGrid
+                ItemsSource="{Binding AllPlugs}"
+                AutoGenerateColumns="False"
+                CanUserAddRows="False"
+                GridLinesVisibility="All"
+                HeadersVisibility="Column"
+                MaxHeight="300"
+                MaxWidth="500"
+                HorizontalAlignment="Left">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" IsReadOnly="True" Width="180" />
+                    <DataGridTextColumn Header="Brand" Binding="{Binding Brand}" IsReadOnly="True" Width="80" />
+                    <DataGridCheckBoxColumn Header="Visible in NINA" Binding="{Binding IsVisibleInNina}" Width="110" />
+                </DataGrid.Columns>
+            </DataGrid>
         </StackPanel>
     </DataTemplate>
 </ResourceDictionary>
