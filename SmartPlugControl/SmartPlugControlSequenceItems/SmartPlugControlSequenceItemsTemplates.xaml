@@ -50,4 +50,32 @@
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>
     </DataTemplate>
+
+    <!--  Covers both PlugIsOnCondition and PlugIsOffCondition (implicit template resolution up the class hierarchy).  -->
+    <DataTemplate DataType="{x:Type local:PlugConditionBase}">
+        <nina:SequenceBlockView>
+            <nina:SequenceBlockView.SequenceItemContent>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Plug" />
+                    <ComboBox
+                        MinWidth="140"
+                        ItemsSource="{Binding AvailablePlugs}"
+                        SelectedItem="{Binding SelectedPlug}"
+                        DisplayMemberPath="Alias" />
+                </StackPanel>
+            </nina:SequenceBlockView.SequenceItemContent>
+        </nina:SequenceBlockView>
+    </DataTemplate>
+
+    <!--  Covers both TotalConsumptionBelowCondition and TotalConsumptionAboveCondition.  -->
+    <DataTemplate DataType="{x:Type local:ConsumptionThresholdConditionBase}">
+        <nina:SequenceBlockView>
+            <nina:SequenceBlockView.SequenceItemContent>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Threshold (W)" />
+                    <TextBox MinWidth="60" Text="{Binding ThresholdWatts, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+            </nina:SequenceBlockView.SequenceItemContent>
+        </nina:SequenceBlockView>
+    </DataTemplate>
 </ResourceDictionary>
