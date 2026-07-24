@@ -37,13 +37,28 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("This is a notification")]
-        public string DefaultNotificationMessage {
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string TpLinkUsername {
             get {
-                return ((string)(this["DefaultNotificationMessage"]));
+                return ((string)(this["TpLinkUsername"]));
             }
             set {
-                this["DefaultNotificationMessage"] = value;
+                this["TpLinkUsername"] = value;
+            }
+        }
+
+        /// <summary>
+        /// DPAPI-encrypted (see SecureCredentialStore), never stored in plain text.
+        /// </summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string TpLinkPasswordProtected {
+            get {
+                return ((string)(this["TpLinkPasswordProtected"]));
+            }
+            set {
+                this["TpLinkPasswordProtected"] = value;
             }
         }
     }

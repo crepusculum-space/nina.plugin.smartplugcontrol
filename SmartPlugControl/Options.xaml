@@ -7,14 +7,7 @@
     <!--  Furthermore the Resource Dictionary has to be exported via code behind export attributes  -->
     <DataTemplate x:Key="Smart Plug Control_Options">
         <StackPanel Orientation="Vertical">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Default Notification Message" />
-                <TextBox MinWidth="50" Text="{Binding DefaultNotificationMessage}" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Profile Specific Notification Message" />
-                <TextBox MinWidth="50" Text="{Binding ProfileSpecificNotificationMessage}" />
-            </StackPanel>
+            <!--  TP-Link cloud credentials, thresholds, and other plugin-wide settings will be added here (Phase 7)  -->
         </StackPanel>
     </DataTemplate>
 </ResourceDictionary>
