@@ -39,13 +39,15 @@
                 ItemsSource="{Binding Plugs}"
                 AutoGenerateColumns="False"
                 CanUserAddRows="False"
-                IsReadOnly="False">
+                IsReadOnly="False"
+                GridLinesVisibility="All"
+                HeadersVisibility="Column">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" IsReadOnly="True" />
-                    <DataGridTextColumn Header="Equipment" Binding="{Binding EquipmentName, UpdateSourceTrigger=PropertyChanged}" />
-                    <DataGridTextColumn Header="Brand" Binding="{Binding Brand}" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" IsReadOnly="True" Width="120" />
+                    <DataGridTextColumn Header="Equipment" Binding="{Binding EquipmentName, UpdateSourceTrigger=PropertyChanged}" Width="150" />
+                    <DataGridTextColumn Header="Brand" Binding="{Binding Brand}" IsReadOnly="True" Width="70" />
 
-                    <DataGridTemplateColumn Header="On/Off">
+                    <DataGridTemplateColumn Header="On/Off" Width="70">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox
@@ -57,7 +59,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="LED">
+                    <DataGridTemplateColumn Header="LED" Width="60">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox
@@ -70,7 +72,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="Protected">
+                    <DataGridTemplateColumn Header="Protected" Width="80">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox
@@ -81,7 +83,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="Power">
+                    <DataGridTemplateColumn Header="Power" Width="80">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock
