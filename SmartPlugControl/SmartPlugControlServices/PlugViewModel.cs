@@ -15,12 +15,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         public string EquipmentName { get; set; } = string.Empty;
         public bool IsProtected { get; set; }
 
-        /// <summary>Null when the local IP could not be resolved or the device hasn't been polled yet.</summary>
+        /// <summary>Null when the device hasn't been polled yet or the cloud relay call failed (offline, no driver, etc).</summary>
         public bool? IsOn { get; set; }
 
         public PlugPowerReading LastPower { get; set; }
-
-        /// <summary>Null when the local address of the device is unknown - see PlugRegistryService.</summary>
-        public string LocalIpAddress { get; set; }
     }
 }

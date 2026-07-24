@@ -10,12 +10,13 @@ using System.ComponentModel.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using TapoConnect.Util;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
     /// <summary>
-    /// Combines TP-Link cloud discovery, local brand-specific drivers, and per-profile persisted data
-    /// (equipment name, protected flag) into one unified, polled view of every plug/socket.
+    /// Combines TP-Link cloud discovery, cloud-relayed device control (Kasa only for now - see
+    /// KasaCloudPassthroughClient for why control never touches the local network), and per-profile
+    /// persisted data (equipment name, protected flag) into one unified, polled view of every plug/socket.
+    /// Tapo devices are discovered and listed but have no driver yet (deferred, see plan).
     /// </summary>
     [Export(typeof(IPlugRegistryService))]
     [PartCreationPolicy(CreationPolicy.Shared)]
@@ -28,19 +29,20 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
         private readonly IProfileService profileService;
         private readonly ITpLinkCloudClient cloudClient;
+        private readonly KasaCloudPassthroughClient kasaClient;
         private readonly SemaphoreSlim refreshLock = new SemaphoreSlim(1, 1);
 
         private IPluginOptionsAccessor pluginSettings;
-        private Dictionary<string, IPlugDriver> driversByPlugId = new Dictionary<string, IPlugDriver>();
         private List<PlugViewModel> plugs = new List<PlugViewModel>();
 
         [ImportingConstructor]
-        public PlugRegistryService(IProfileService profileService) : this(profileService, new TpLinkCloudClient()) {
+        public PlugRegistryService(IProfileService profileService) : this(profileService, new TpLinkCloudClient(), new KasaCloudPassthroughClient()) {
         }
 
-        internal PlugRegistryService(IProfileService profileService, ITpLinkCloudClient cloudClient) {
+        internal PlugRegistryService(IProfileService profileService, ITpLinkCloudClient cloudClient, KasaCloudPassthroughClient kasaClient) {
             this.profileService = profileService;
             this.cloudClient = cloudClient;
+            this.kasaClient = kasaClient;
             pluginSettings = new PluginOptionsAccessor(profileService, PluginGuid);
             profileService.ProfileChanged += ProfileService_ProfileChanged;
         }
@@ -60,35 +62,36 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
             await refreshLock.WaitAsync(token);
             try {
-                var cloudDevices = await cloudClient.DiscoverDevicesAsync(username, password, token);
+                // No long-lived token cache yet - a fresh login each refresh keeps this simple until
+                // polling frequency (added in a later phase) makes that wasteful.
+                string cloudToken = await cloudClient.LoginAsync(username, password, token);
+                var cloudDevices = await cloudClient.ListDevicesAsync(cloudToken, token);
                 var persisted = LoadPersistedData();
 
-                var newDrivers = new Dictionary<string, IPlugDriver>();
                 var newPlugs = new List<PlugViewModel>();
 
                 foreach (var device in cloudDevices) {
                     token.ThrowIfCancellationRequested();
 
-                    // The cloud device list carries no local IP; opportunistically resolve it from the
-                    // MAC via ARP. If the device hasn't recently talked on the LAN this will fail, in
-                    // which case the plug still shows up (from the cloud) but with unknown live state.
-                    string ip = await Task.Run(() => TapoUtils.GetIpAddressByMacAddress(device.DeviceMac), token);
-
-                    IReadOnlyList<IPlugDriver> deviceDrivers = Array.Empty<IPlugDriver>();
-                    if (ip != null) {
-                        deviceDrivers = await CreateDriversAsync(device, ip, username, password);
+                    if (device.Brand != PlugBrand.Kasa) {
+                        // Tapo control isn't implemented yet (see plan) - still list the device so
+                        // persisted config isn't lost once it's supported, but with unknown state.
+                        var tapoData = persisted.TryGetValue(device.DeviceId, out var td) ? td : new PlugPersistedData { PlugId = device.DeviceId };
+                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, tapoData, isOn: null, power: null));
+                        continue;
                     }
 
-                    if (deviceDrivers.Count == 0) {
-                        // Either the IP couldn't be resolved, or the device connection failed - still
-                        // surface it in the list (persisted config isn't lost) but with unknown state.
+                    IReadOnlyList<IPlugDriver> deviceDrivers;
+                    try {
+                        deviceDrivers = await KasaCloudPlugDriverFactory.CreateAsync(kasaClient, device, cloudToken, token);
+                    } catch (Exception) {
+                        // Device is on the account but the cloud relay call failed (offline, etc).
                         var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
-                        newPlugs.Add(ToViewModel(device, device.DeviceId, data, ip, isOn: null, power: null));
+                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, data, isOn: null, power: null));
                         continue;
                     }
 
                     foreach (var driver in deviceDrivers) {
-                        newDrivers[driver.PlugId] = driver;
                         var data = persisted.TryGetValue(driver.PlugId, out var d) ? d : new PlugPersistedData { PlugId = driver.PlugId };
 
                         bool? isOn = null;
@@ -100,54 +103,26 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                             // Device went offline between discovery and polling - leave state unknown.
                         }
 
-                        newPlugs.Add(ToViewModel(device, driver.PlugId, data, ip, isOn, power));
+                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power));
                     }
                 }
 
-                await DisposeDriversAsync(driversByPlugId.Values.Except(newDrivers.Values));
-
-                driversByPlugId = newDrivers;
                 plugs = newPlugs;
             } finally {
                 refreshLock.Release();
             }
         }
 
-        private static PlugViewModel ToViewModel(CloudPlugDeviceInfo device, string plugId, PlugPersistedData data, string ip, bool? isOn, PlugPowerReading power) {
+        private static PlugViewModel ToViewModel(CloudPlugDeviceInfo device, string plugId, string alias, PlugPersistedData data, bool? isOn, PlugPowerReading power) {
             return new PlugViewModel {
                 PlugId = plugId,
-                Alias = device.Alias,
+                Alias = alias,
                 Brand = device.Brand,
                 EquipmentName = data.EquipmentName,
                 IsProtected = data.IsProtected,
-                LocalIpAddress = ip,
                 IsOn = isOn,
                 LastPower = power
             };
-        }
-
-        private static async Task<IReadOnlyList<IPlugDriver>> CreateDriversAsync(CloudPlugDeviceInfo device, string ip, string username, string password) {
-            try {
-                if (device.Brand == PlugBrand.Kasa) {
-                    return await KasaPlugDriverFactory.CreateAsync(device.DeviceId, ip);
-                }
-                if (device.Brand == PlugBrand.Tapo) {
-                    return new List<IPlugDriver> { new TapoPlugDriver(device.DeviceId, ip, username, password) };
-                }
-            } catch (Exception) {
-                // Device is on the cloud account but unreachable/incompatible locally right now.
-            }
-            return Array.Empty<IPlugDriver>();
-        }
-
-        private static async Task DisposeDriversAsync(IEnumerable<IPlugDriver> drivers) {
-            foreach (var driver in drivers) {
-                try {
-                    await driver.DisposeAsync();
-                } catch (Exception) {
-                    // Best-effort cleanup.
-                }
-            }
         }
 
         public void SetEquipmentName(string plugId, string equipmentName) {
@@ -199,9 +174,6 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
         public void Dispose() {
             profileService.ProfileChanged -= ProfileService_ProfileChanged;
-            foreach (var driver in driversByPlugId.Values) {
-                driver.DisposeAsync().AsTask().Wait();
-            }
         }
     }
 }

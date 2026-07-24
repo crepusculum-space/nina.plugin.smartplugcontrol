@@ -13,6 +13,12 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         /// <summary>Stable identifier: the cloud DeviceId, suffixed with the socket index for multi-socket devices.</summary>
         string PlugId { get; }
 
+        /// <summary>
+        /// The user-facing name for this specific socket - e.g. each outlet on a Kasa power strip has
+        /// its own alias, distinct from the strip's own (usually unnamed) device-level alias.
+        /// </summary>
+        string Alias { get; }
+
         Task<bool> IsOnAsync(CancellationToken token = default);
         Task TurnOnAsync(CancellationToken token = default);
         Task TurnOffAsync(CancellationToken token = default);

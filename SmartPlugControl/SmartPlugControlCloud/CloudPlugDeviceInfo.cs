@@ -11,5 +11,8 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
         public string DeviceMac { get; set; }
         public PlugBrand Brand { get; set; }
         public bool IsOnline { get; set; }
+
+        /// <summary>The device's own cloud relay endpoint - control commands are POSTed here, never to a local IP.</summary>
+        public string AppServerUrl { get; set; }
     }
 }

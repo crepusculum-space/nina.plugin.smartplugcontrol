@@ -11,6 +11,8 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
     /// (wap.tplinkcloud.com) used by both the Kasa and Tapo apps. A single TP-Link ID login
     /// returns every device on the account regardless of brand; devices are told apart
     /// afterwards by DeviceType (TapoUtils.IsTapoDevice - anything else is treated as Kasa).
+    /// This client only covers discovery (login + listing); device control uses a separate,
+    /// signed protocol - see KasaCloudPassthroughClient.
     /// </summary>
     public class TpLinkCloudClient : ITpLinkCloudClient {
         private readonly ITapoCloudClient cloudClient;
@@ -22,11 +24,14 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
             this.cloudClient = cloudClient;
         }
 
-        public async Task<IReadOnlyList<CloudPlugDeviceInfo>> DiscoverDevicesAsync(string username, string password, CancellationToken token = default) {
+        public async Task<string> LoginAsync(string username, string password, CancellationToken token = default) {
             var login = await cloudClient.LoginAsync(username, password);
             token.ThrowIfCancellationRequested();
+            return login.Token;
+        }
 
-            var devices = await cloudClient.ListDevicesAsync(login.Token);
+        public async Task<IReadOnlyList<CloudPlugDeviceInfo>> ListDevicesAsync(string cloudToken, CancellationToken token = default) {
+            var devices = await cloudClient.ListDevicesAsync(cloudToken);
             token.ThrowIfCancellationRequested();
 
             return devices.DeviceList
@@ -37,7 +42,8 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
                     DeviceModel = d.DeviceModel,
                     DeviceMac = d.DeviceMac,
                     Brand = TapoUtils.IsTapoDevice(d.DeviceType) ? PlugBrand.Tapo : PlugBrand.Kasa,
-                    IsOnline = d.Status == 1
+                    IsOnline = d.Status == 1,
+                    AppServerUrl = d.AppServerUrl
                 })
                 .ToList();
         }
