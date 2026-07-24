@@ -44,12 +44,16 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
 
         public Task<bool> SupportsLedAsync(CancellationToken token = default) => Task.FromResult(true);
 
+        // "led_off" is a whole-device setting (one physical indicator LED per power strip, not one
+        // per socket - confirmed on a real KP303: children only have id/state/alias/on_time, no
+        // led_off; only the parent-level sysinfo has it). So LED read/write always targets the
+        // parent device, never a specific child, even for driver instances that represent one socket
+        // on a strip - every socket on that strip shares (and toggles) the same physical LED.
         public Task SetLedAsync(bool on, CancellationToken token = default) =>
-            client.SetLedOffAsync(appServerUrl, cloudToken, deviceId, childId, on, token);
+            client.SetLedOffAsync(appServerUrl, cloudToken, deviceId, childId: null, on, token);
 
         public async Task<bool?> IsLedOnAsync(CancellationToken token = default) {
-            var sysInfo = await client.GetSysInfoAsync(appServerUrl, cloudToken, deviceId, childId, token);
-            // "led_off" is a device-level (not always per-child) field - absent means unknown, not "off".
+            var sysInfo = await client.GetSysInfoAsync(appServerUrl, cloudToken, deviceId, childId: null, token);
             int? ledOff = sysInfo.Value<int?>("led_off");
             return ledOff == null ? (bool?)null : ledOff == 0;
         }
