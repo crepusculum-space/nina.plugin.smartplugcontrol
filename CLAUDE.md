@@ -27,8 +27,10 @@ only control") — do not reintroduce local IP-based control (e.g. via `Aldaviva
   same cloud-relay trick even works for it — don't assume it does. Tapo devices are still *discovered*
   (`PlugRegistryService` lists them) but have no driver, so they show up with unknown state.
 - **Equipment page (dockable panel)**: done, renders inside NINA's **Imaging** tab (not the
-  Equipment tab — that surprised the user, who expected it under Installed Plugins settings instead;
-  as of the last session this placement was still an open question, revisit if asked).
+  Equipment tab — that surprised the user at first, who expected it under Installed Plugins settings
+  instead). **Placement is a deliberate, final decision, not a placeholder**: the user considered
+  moving it and decided to keep it in Imaging, since the toolbar icon there lets them show/hide it
+  without leaving the Imaging view mid-session. Don't relocate this without being asked again.
 - **Not started yet**: sequencer instructions/conditions/triggers, alerts, the real settings page
   (currently just two plaintext credential fields bolted onto Options.xaml as a stopgap), power-usage
   threshold UI, Tapo support.
