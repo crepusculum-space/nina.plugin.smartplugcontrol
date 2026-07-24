@@ -47,6 +47,13 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         public Task SetLedAsync(bool on, CancellationToken token = default) =>
             client.SetLedOffAsync(appServerUrl, cloudToken, deviceId, childId, on, token);
 
+        public async Task<bool?> IsLedOnAsync(CancellationToken token = default) {
+            var sysInfo = await client.GetSysInfoAsync(appServerUrl, cloudToken, deviceId, childId, token);
+            // "led_off" is a device-level (not always per-child) field - absent means unknown, not "off".
+            int? ledOff = sysInfo.Value<int?>("led_off");
+            return ledOff == null ? (bool?)null : ledOff == 0;
+        }
+
         public async Task<PlugPowerReading> GetPowerAsync(CancellationToken token = default) {
             if (energyMonitoringSupported == false) {
                 return null;

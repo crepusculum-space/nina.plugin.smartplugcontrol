@@ -35,6 +35,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private IPluginOptionsAccessor pluginSettings;
         private List<PlugViewModel> plugs = new List<PlugViewModel>();
 
+        // Kept across refreshes so the UI/sequencer can act on a plug (on/off/LED) without triggering
+        // a full re-discovery first. Rebuilt wholesale on every RefreshAsync.
+        private Dictionary<string, IPlugDriver> driversByPlugId = new Dictionary<string, IPlugDriver>();
+
         [ImportingConstructor]
         public PlugRegistryService(IProfileService profileService) : this(profileService, new TpLinkCloudClient(), new KasaCloudPassthroughClient()) {
         }
@@ -69,6 +73,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 var persisted = LoadPersistedData();
 
                 var newPlugs = new List<PlugViewModel>();
+                var newDrivers = new Dictionary<string, IPlugDriver>();
 
                 foreach (var device in cloudDevices) {
                     token.ThrowIfCancellationRequested();
@@ -77,7 +82,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                         // Tapo control isn't implemented yet (see plan) - still list the device so
                         // persisted config isn't lost once it's supported, but with unknown state.
                         var tapoData = persisted.TryGetValue(device.DeviceId, out var td) ? td : new PlugPersistedData { PlugId = device.DeviceId };
-                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, tapoData, isOn: null, power: null));
+                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, tapoData, isOn: null, power: null, supportsLed: false));
                         continue;
                     }
 
@@ -87,33 +92,41 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                     } catch (Exception) {
                         // Device is on the account but the cloud relay call failed (offline, etc).
                         var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
-                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, data, isOn: null, power: null));
+                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, data, isOn: null, power: null, supportsLed: false));
                         continue;
                     }
 
                     foreach (var driver in deviceDrivers) {
+                        newDrivers[driver.PlugId] = driver;
                         var data = persisted.TryGetValue(driver.PlugId, out var d) ? d : new PlugPersistedData { PlugId = driver.PlugId };
 
                         bool? isOn = null;
+                        bool supportsLed = false;
+                        bool? isLedOn = null;
                         PlugPowerReading power = null;
                         try {
                             isOn = await driver.IsOnAsync(token);
+                            supportsLed = await driver.SupportsLedAsync(token);
+                            if (supportsLed) {
+                                isLedOn = await driver.IsLedOnAsync(token);
+                            }
                             power = await driver.GetPowerAsync(token);
                         } catch (Exception) {
                             // Device went offline between discovery and polling - leave state unknown.
                         }
 
-                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power));
+                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power, supportsLed, isLedOn));
                     }
                 }
 
+                driversByPlugId = newDrivers;
                 plugs = newPlugs;
             } finally {
                 refreshLock.Release();
             }
         }
 
-        private static PlugViewModel ToViewModel(CloudPlugDeviceInfo device, string plugId, string alias, PlugPersistedData data, bool? isOn, PlugPowerReading power) {
+        private static PlugViewModel ToViewModel(CloudPlugDeviceInfo device, string plugId, string alias, PlugPersistedData data, bool? isOn, PlugPowerReading power, bool supportsLed, bool? isLedOn = null) {
             return new PlugViewModel {
                 PlugId = plugId,
                 Alias = alias,
@@ -121,6 +134,8 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 EquipmentName = data.EquipmentName,
                 IsProtected = data.IsProtected,
                 IsOn = isOn,
+                SupportsLed = supportsLed,
+                IsLedOn = isLedOn,
                 LastPower = power
             };
         }
@@ -153,6 +168,49 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             if (plug != null) {
                 plug.IsProtected = isProtected;
             }
+        }
+
+        public Task TurnOnAsync(string plugId, CancellationToken token = default) =>
+            GetDriverOrThrow(plugId).TurnOnAsync(token);
+
+        public Task TurnOffAsync(string plugId, CancellationToken token = default) =>
+            GetDriverOrThrow(plugId).TurnOffAsync(token);
+
+        public Task SetLedAsync(string plugId, bool on, CancellationToken token = default) =>
+            GetDriverOrThrow(plugId).SetLedAsync(on, token);
+
+        public async Task TurnOnAllAsync(CancellationToken token = default) {
+            foreach (var driver in driversByPlugId.Values) {
+                token.ThrowIfCancellationRequested();
+                await driver.TurnOnAsync(token);
+            }
+        }
+
+        public async Task TurnOffAllAsync(CancellationToken token = default) {
+            var protectedPlugIds = plugs.Where(p => p.IsProtected).Select(p => p.PlugId).ToHashSet();
+            foreach (var (plugId, driver) in driversByPlugId) {
+                if (protectedPlugIds.Contains(plugId)) {
+                    continue;
+                }
+                token.ThrowIfCancellationRequested();
+                await driver.TurnOffAsync(token);
+            }
+        }
+
+        public async Task SetAllLedsAsync(bool on, CancellationToken token = default) {
+            foreach (var driver in driversByPlugId.Values) {
+                token.ThrowIfCancellationRequested();
+                if (await driver.SupportsLedAsync(token)) {
+                    await driver.SetLedAsync(on, token);
+                }
+            }
+        }
+
+        private IPlugDriver GetDriverOrThrow(string plugId) {
+            if (!driversByPlugId.TryGetValue(plugId, out var driver)) {
+                throw new InvalidOperationException($"No live driver for plug '{plugId}' - it may be offline or not yet discovered. Refresh first.");
+            }
+            return driver;
         }
 
         private Dictionary<string, PlugPersistedData> LoadPersistedData() {

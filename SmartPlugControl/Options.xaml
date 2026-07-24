@@ -7,7 +7,15 @@
     <!--  Furthermore the Resource Dictionary has to be exported via code behind export attributes  -->
     <DataTemplate x:Key="Smart Plug Control_Options">
         <StackPanel Orientation="Vertical">
-            <!--  TP-Link cloud credentials, thresholds, and other plugin-wide settings will be added here (Phase 7)  -->
+            <!--  Thresholds, refresh interval, and LED start/end-of-sequence options will be added here (Phase 7)  -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <TextBlock Text="TP-Link username/email" VerticalAlignment="Center" MinWidth="160" />
+                <TextBox MinWidth="200" Text="{Binding TpLinkUsername, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="TP-Link password" VerticalAlignment="Center" MinWidth="160" />
+                <TextBox MinWidth="200" Text="{Binding TpLinkPassword, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
         </StackPanel>
     </DataTemplate>
 </ResourceDictionary>

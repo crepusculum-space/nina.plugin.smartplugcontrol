@@ -26,6 +26,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         Task<bool> SupportsLedAsync(CancellationToken token = default);
         Task SetLedAsync(bool on, CancellationToken token = default);
 
+        /// <summary>Null if the LED isn't supported, or its current state can't be determined (e.g. some power-strip sockets only report LED state at the whole-strip level).</summary>
+        Task<bool?> IsLedOnAsync(CancellationToken token = default);
+
         /// <summary>Returns null if the device/socket does not support energy monitoring.</summary>
         Task<PlugPowerReading> GetPowerAsync(CancellationToken token = default);
     }

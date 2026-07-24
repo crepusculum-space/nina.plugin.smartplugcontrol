@@ -1,4 +1,5 @@
 using Crepusculum.NINA.SmartPlugControl.Properties;
+using Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud;
 using NINA.Core.Utility;
 using NINA.Plugin;
 using NINA.Plugin.Interfaces;
@@ -21,6 +22,27 @@ namespace Crepusculum.NINA.SmartPlugControl {
                 Settings.Default.Upgrade();
                 Settings.Default.UpdateSettings = false;
                 CoreUtil.SaveSettings(Settings.Default);
+            }
+        }
+
+        // Minimal stand-in for the Phase 7 settings page (thresholds, refresh interval, LED
+        // start/end-of-sequence options, and a proper masked password control) - just enough to
+        // unblock testing the equipment page. The password field is a plain TextBox for now.
+        public string TpLinkUsername {
+            get => Settings.Default.TpLinkUsername;
+            set {
+                Settings.Default.TpLinkUsername = value ?? string.Empty;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+            }
+        }
+
+        public string TpLinkPassword {
+            get => SecureCredentialStore.Unprotect(Settings.Default.TpLinkPasswordProtected);
+            set {
+                Settings.Default.TpLinkPasswordProtected = SecureCredentialStore.Protect(value ?? string.Empty);
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
             }
         }
 

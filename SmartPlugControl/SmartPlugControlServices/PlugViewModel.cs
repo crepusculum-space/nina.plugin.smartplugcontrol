@@ -18,6 +18,11 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         /// <summary>Null when the device hasn't been polled yet or the cloud relay call failed (offline, no driver, etc).</summary>
         public bool? IsOn { get; set; }
 
+        public bool SupportsLed { get; set; }
+
+        /// <summary>Null when LED state can't be determined even though SupportsLed is true - see IPlugDriver.IsLedOnAsync.</summary>
+        public bool? IsLedOn { get; set; }
+
         public PlugPowerReading LastPower { get; set; }
     }
 }

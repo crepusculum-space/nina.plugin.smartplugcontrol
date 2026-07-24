@@ -1,0 +1,97 @@
+<ResourceDictionary
+    x:Class="Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables.PlugControlDockableTemplates"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables">
+
+    <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+    <!--  A simple hand-drawn plug glyph (two prongs over a body) used as the panel's tab icon.  -->
+    <GeometryGroup x:Key="Crepusculum.NINA.SmartPlugControl_PlugIconSVG">
+        <PathGeometry Figures="M2,9 L14,9 L14,19 L2,19 Z" />
+        <PathGeometry Figures="M5,9 L7,9 L7,3 L5,3 Z" />
+        <PathGeometry Figures="M9,9 L11,9 L11,3 L9,3 Z" />
+    </GeometryGroup>
+
+    <!--  Naming convention: fully-qualified VM class name + "_Dockable", same pattern NINA's plugin template uses.  -->
+    <DataTemplate x:Key="Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables.PlugControlDockableVM_Dockable">
+        <Grid Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                <Button Content="Turn On All" Command="{Binding TurnOnAllCommand}" Margin="0,0,5,0" Padding="8,4" />
+                <Button Content="Turn Off All" Command="{Binding TurnOffAllCommand}" Margin="0,0,5,0" Padding="8,4" />
+                <Button Content="LEDs On" Command="{Binding LedsOnCommand}" Margin="0,0,5,0" Padding="8,4" />
+                <Button Content="LEDs Off" Command="{Binding LedsOffCommand}" Padding="8,4" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="1" Margin="0,0,0,5">
+                <Run Text="Total consumption: " />
+                <Run Text="{Binding TotalWatts, StringFormat={}{0:F1} W}" />
+            </TextBlock>
+
+            <DataGrid
+                Grid.Row="2"
+                ItemsSource="{Binding Plugs}"
+                AutoGenerateColumns="False"
+                CanUserAddRows="False"
+                IsReadOnly="False">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Equipment" Binding="{Binding EquipmentName, UpdateSourceTrigger=PropertyChanged}" />
+                    <DataGridTextColumn Header="Brand" Binding="{Binding Brand}" IsReadOnly="True" />
+
+                    <DataGridTemplateColumn Header="On/Off">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox
+                                    IsThreeState="True"
+                                    IsChecked="{Binding IsOn, Mode=OneWay}"
+                                    Command="{Binding ToggleOnOffCommand}"
+                                    HorizontalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="LED">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox
+                                    IsThreeState="True"
+                                    IsChecked="{Binding IsLedOn, Mode=OneWay}"
+                                    Command="{Binding ToggleLedCommand}"
+                                    Visibility="{Binding SupportsLed, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    HorizontalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="Protected">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox
+                                    IsChecked="{Binding IsProtected, Mode=OneWay}"
+                                    Command="{Binding ToggleProtectedCommand}"
+                                    HorizontalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="Power">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock
+                                    Text="{Binding Watts, StringFormat={}{0:F1} W}"
+                                    Visibility="{Binding HasPower, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>
