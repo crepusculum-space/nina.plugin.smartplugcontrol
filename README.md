@@ -32,9 +32,9 @@ Smart Plug Control isn't in NINA's official plugin repository yet, so for now it
 NINA only auto-extracts a plugin zip when it downloads it itself from the official repository; a zip
 placed here by hand has to be extracted by you first, NINA will not do it for you.
 
-1. Get the plugin files, either by downloading and **extracting** the zip from the
-   [Releases](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) page (not
-   published yet - for now, build it yourself, see [Building from source](#building-from-source)).
+1. Download and **extract** the zip from the
+   [Releases](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) page (or
+   build it yourself, see [Building from source](#building-from-source)).
 2. Close NINA completely if it's running (check Task Manager too - closing the window doesn't always
    kill the process, and a still-running NINA will keep a lock on files you're trying to replace).
 3. Make sure `%LOCALAPPDATA%\NINA\Plugins\3.0.0\` exists (create it if it doesn't), then place the
