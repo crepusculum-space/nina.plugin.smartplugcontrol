@@ -28,11 +28,12 @@ you other than requiring an internet connection for plug control.
 
 ## Installation
 
-Smart Plug Control isn't in NINA's official plugin repository yet, so for now it's a manual install:
+Smart Plug Control isn't in NINA's official plugin repository yet, and there's no packaged release
+build yet either - for now, build it yourself:
 
-1. Download the latest release from the
-   [Releases](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) page (or
-   build it yourself - see [Building from source](#building-from-source)).
+1. Build it - see [Building from source](#building-from-source). (A packaged
+   [Release](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) with a
+   ready-to-copy zip is planned but not published yet.)
 2. Close NINA completely if it's running.
 3. Copy the plugin folder into `%LOCALAPPDATA%\NINA\Plugins\3.0.0\`.
 4. Start NINA. The plugin appears under **Options → Plugins** as "Smart Plug Control".
