@@ -7,8 +7,6 @@ using NINA.Core.Utility.Notification;
 using NINA.Plugin;
 using NINA.Plugin.Interfaces;
 using NINA.Profile.Interfaces;
-using NINA.Sequencer.Interfaces.Mediator;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
@@ -24,41 +22,16 @@ namespace Crepusculum.NINA.SmartPlugControl {
     [Export(typeof(IPluginManifest))]
     public class SmartPlugControl : PluginBase, INotifyPropertyChanged {
         private readonly IPlugRegistryService registry;
-        private readonly ISequenceMediator sequenceMediator;
 
         [ImportingConstructor]
-        public SmartPlugControl(IProfileService profileService, IPlugRegistryService registry, ISequenceMediator sequenceMediator) {
+        public SmartPlugControl(IProfileService profileService, IPlugRegistryService registry) {
             this.registry = registry;
-            this.sequenceMediator = sequenceMediator;
             if (Settings.Default.UpdateSettings) {
                 Settings.Default.Upgrade();
                 Settings.Default.UpdateSettings = false;
                 CoreUtil.SaveSettings(Settings.Default);
             }
             RefreshPlugsCommand = new AsyncRelayCommand(RefreshPlugsAsync);
-
-            sequenceMediator.SequenceStarting += SequenceMediator_SequenceStarting;
-            sequenceMediator.SequenceFinished += SequenceMediator_SequenceFinished;
-        }
-
-        private async Task SequenceMediator_SequenceStarting(object sender, EventArgs e) {
-            if (Settings.Default.LedsOffAtSequenceStart) {
-                try {
-                    await registry.SetAllLedsAsync(false);
-                } catch (System.Exception ex) {
-                    Notification.ShowError($"Failed to turn off LEDs at sequence start: {ex.Message}");
-                }
-            }
-        }
-
-        private async Task SequenceMediator_SequenceFinished(object sender, EventArgs e) {
-            if (Settings.Default.LedsOnAtSequenceFinish) {
-                try {
-                    await registry.SetAllLedsAsync(true);
-                } catch (System.Exception ex) {
-                    Notification.ShowError($"Failed to turn on LEDs at sequence finish: {ex.Message}");
-                }
-            }
         }
 
         /// <summary>Every plug on the account, with a toggle for whether it should show up in the equipment page/sequencer.</summary>
@@ -78,9 +51,9 @@ namespace Crepusculum.NINA.SmartPlugControl {
             }
         }
 
-        // Minimal stand-in for the Phase 7 settings page (thresholds, refresh interval, LED
-        // start/end-of-sequence options, and a proper masked password control) - just enough to
-        // unblock testing the equipment page. The password field is a plain TextBox for now.
+        // Minimal stand-in for the Phase 7 settings page (thresholds, refresh interval, and a proper
+        // masked password control) - just enough to unblock testing the equipment page. The password
+        // field is a plain TextBox for now.
         public string TpLinkUsername {
             get => Settings.Default.TpLinkUsername;
             set {
@@ -117,24 +90,6 @@ namespace Crepusculum.NINA.SmartPlugControl {
             }
         }
 
-        public bool LedsOffAtSequenceStart {
-            get => Settings.Default.LedsOffAtSequenceStart;
-            set {
-                Settings.Default.LedsOffAtSequenceStart = value;
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
-            }
-        }
-
-        public bool LedsOnAtSequenceFinish {
-            get => Settings.Default.LedsOnAtSequenceFinish;
-            set {
-                Settings.Default.LedsOnAtSequenceFinish = value;
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
-            }
-        }
-
         public int RefreshIntervalSeconds {
             get => Settings.Default.RefreshIntervalSeconds;
             set {
@@ -143,12 +98,6 @@ namespace Crepusculum.NINA.SmartPlugControl {
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
             }
-        }
-
-        public override Task Teardown() {
-            sequenceMediator.SequenceStarting -= SequenceMediator_SequenceStarting;
-            sequenceMediator.SequenceFinished -= SequenceMediator_SequenceFinished;
-            return base.Teardown();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

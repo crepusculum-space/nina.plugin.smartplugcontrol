@@ -32,6 +32,21 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
         }
 
         public override bool ShouldTrigger(ISequenceItem previousItem, ISequenceItem nextItem) {
+            return CheckShouldTrigger();
+        }
+
+        // NINA only checks triggers at instruction boundaries - ShouldTrigger before the next
+        // instruction runs, ShouldTriggerAfter once the previous one finishes (never during a
+        // single long-running instruction, e.g. a multi-minute Wait). The base SequenceTrigger
+        // defaults ShouldTriggerAfter to false, so without this override a sequence with only one
+        // instruction (or where this trigger is the last one checked) would never see a state
+        // change reported at all - ShouldTrigger only ever fires once, before that lone instruction,
+        // to establish the baseline.
+        public override bool ShouldTriggerAfter(ISequenceItem previousItem, ISequenceItem nextItem) {
+            return CheckShouldTrigger();
+        }
+
+        private bool CheckShouldTrigger() {
             bool? current = SelectedPlug?.IsOn;
             if (current == null) {
                 // Offline or not polled yet - nothing to compare against.

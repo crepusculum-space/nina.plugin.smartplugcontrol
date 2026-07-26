@@ -89,30 +89,6 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool LedsOffAtSequenceStart {
-            get {
-                return ((bool)(this["LedsOffAtSequenceStart"]));
-            }
-            set {
-                this["LedsOffAtSequenceStart"] = value;
-            }
-        }
-
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool LedsOnAtSequenceFinish {
-            get {
-                return ((bool)(this["LedsOnAtSequenceFinish"]));
-            }
-            set {
-                this["LedsOnAtSequenceFinish"] = value;
-            }
-        }
-
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("10")]
         public int RefreshIntervalSeconds {
             get {

@@ -8,8 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
-    [ExportMetadata("Name", "Turn On All Plugs")]
-    [ExportMetadata("Description", "Turns on every discovered smart plug.")]
+    [ExportMetadata("Name", "Turn All Plugs On")]
+    [ExportMetadata("Description", "Turns on every discovered smart plug, with an optional delay afterwards.")]
     [ExportMetadata("Icon", "Crepusculum.NINA.SmartPlugControl_SequenceItemSVG")]
     [ExportMetadata("Category", "Smart Plug Control")]
     [Export(typeof(ISequenceItem))]
@@ -24,13 +24,21 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
 
         public TurnOnAllPlugsInstruction(TurnOnAllPlugsInstruction copyMe) : this(copyMe.registry) {
             CopyMetaData(copyMe);
+            DelayAfterSeconds = copyMe.DelayAfterSeconds;
         }
 
-        public override Task Execute(IProgress<ApplicationStatus> progress, CancellationToken token) =>
-            registry.TurnOnAllAsync(token);
+        [JsonProperty]
+        public int DelayAfterSeconds { get; set; }
+
+        public override async Task Execute(IProgress<ApplicationStatus> progress, CancellationToken token) {
+            await registry.TurnOnAllAsync(token);
+            if (DelayAfterSeconds > 0) {
+                await Task.Delay(TimeSpan.FromSeconds(DelayAfterSeconds), token);
+            }
+        }
 
         public override object Clone() => new TurnOnAllPlugsInstruction(this);
 
-        public override string ToString() => $"Category: {Category}, Item: {nameof(TurnOnAllPlugsInstruction)}";
+        public override string ToString() => $"Category: {Category}, Item: {nameof(TurnOnAllPlugsInstruction)}, Delay: {DelayAfterSeconds}s";
     }
 }

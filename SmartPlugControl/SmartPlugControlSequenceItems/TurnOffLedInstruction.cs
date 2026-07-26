@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
-    [ExportMetadata("Name", "Turn Off LED")]
+    [ExportMetadata("Name", "Turn LED Off")]
     [ExportMetadata("Description", "Turns off the status LED of a specific smart plug.")]
     [ExportMetadata("Icon", "Crepusculum.NINA.SmartPlugControl_SequenceItemSVG")]
     [ExportMetadata("Category", "Smart Plug Control")]

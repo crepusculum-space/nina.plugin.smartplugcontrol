@@ -68,21 +68,59 @@ currently-owned devices support it), community-facing docs for adding other bran
 
 Real settings now exist (`Options.xaml` + bindable properties on the `SmartPlugControl` manifest
 class, all persisted via `Settings.Default`): consumption threshold (Watts) + preventive alert %,
-"turn LEDs off at sequence start"/"on at sequence finish" checkboxes, and a configurable equipment-
-page refresh interval (was hardcoded to 10s, now `PlugControlDockableVM`'s poll loop reads
-`Settings.Default.RefreshIntervalSeconds` fresh every cycle). The threshold/percent fields are wired
-to storage and UI only - nothing reads them yet, since Phase 6 (alerts) isn't built.
+and a configurable equipment-page refresh interval (was hardcoded to 10s, now
+`PlugControlDockableVM`'s poll loop reads `Settings.Default.RefreshIntervalSeconds` fresh every
+cycle). The threshold/percent fields are wired to storage and UI only - nothing reads them yet,
+since Phase 6 (alerts) isn't built.
 
-**LED-at-sequence-start/finish required bumping the `NINA.Plugin` NuGet package** from
-`3.0.0.2017-beta` to `3.2.0.9001` (matching the actually-installed NINA app version exactly) -
-`ISequenceMediator.SequenceStarting`/`SequenceFinished` don't exist at all in `3.0.0.2017-beta`,
-only in newer NINA versions. If a NINA API you need doesn't compile, check whether it exists at the
-SDK version you're pinned to before assuming it's a bug in your own code - compare
-`github.com/isbeorn/nina` at the matching git tag (e.g. `Version-3.0`) vs `develop`. **Side effect to
-watch**: the newer package version pulls in a few more transitive runtime assets we don't need
-(`Microsoft.Web.WebView2.*`, native SQLite/Ports libs) that end up copied into the plugin folder
-despite `ExcludeAssets="runtime"` - harmless bloat so far, but worth tightening later if it causes
-version-conflict problems.
+**"Turn LEDs off at sequence start / on at sequence finish" was attempted and removed - it never
+actually worked (LEDs stayed on) and the real cause was never found, so don't rebuild this without
+diagnosing that first.** It required subscribing to `ISequenceMediator.SequenceStarting`/`SequenceFinished`
+(only available after bumping `NINA.Plugin` from `3.0.0.2017-beta` to `3.2.0.9001` at the time - since
+reverted, see "NINA.Plugin package version" below). Subscribing directly in the plugin constructor
+crashed the whole plugin load with a `NullReferenceException` **thrown inside NINA's own code**
+(`SequenceMediator.add_SequenceStarting`) - confirmed by fetching NINA's actual source at the
+`Version-3.2` tag: the event accessors (and even the `Initialized` getter) unconditionally
+dereference a `sequenceNavigation` field that stays null until NINA's own Sequencer UI calls
+`RegisterSequenceNavigation()`, which happens well after plugins are composed at startup. A
+background retry loop (poll every 2s, catch and retry until the subscription succeeds) fixed the
+crash. The user then reported what looked like interference with sequence execution (a `Turn Off
+Plug` instruction only firing once) - that specific symptom turned out to be user error (a sequence
+that needed a manual reset between runs), not caused by our code. **But separately, the LED
+automation itself never actually worked - the LEDs stayed on regardless**, so this wasn't just a
+false alarm to dismiss; the feature was genuinely broken and its root cause (why `SetAllLedsAsync`
+never took effect once the subscription did succeed) was never diagnosed. The user chose to drop it
+rather than keep debugging: an explicit "Turn On/Off LED" sequencer instruction at the start of the
+sequence (already built, see the 8 Instructions above) does the same job and is known to work.
+Feature fully removed: no
+`ISequenceMediator` dependency, no `SubscribeToSequenceEventsWithRetryAsync`, no
+`LedsOffAtSequenceStart`/`LedsOnAtSequenceFinish` settings/checkboxes. If the user asks for this
+again, the NINA-side subscription-timing fix above is known-good (it did stop the crash), but that's
+only half the problem - the actual `SetAllLedsAsync(false)`/`SetAllLedsAsync(true)` calls inside the
+event handlers never visibly toggled the LEDs, and why is still unexplained. Debug that before
+re-adding: check whether the handlers were actually invoked at all (add logging), not just whether
+subscribing succeeded.
+
+## NINA.Plugin package version (reverted back to 3.0.0.2017-beta)
+
+`SmartPlugControl.csproj`'s `NINA.Plugin` PackageReference was bumped to `3.2.0.9001` mid-project
+specifically for `ISequenceMediator.SequenceStarting`/`SequenceFinished` (the LED-at-sequence
+feature). That feature was later removed entirely (see above) without ever reverting the package
+version - meaning the assembly manifest's `MinimumApplicationVersion` (`Properties/AssemblyInfo.cs`,
+still `"3.0.0.2017"`, used by NINA's plugin manager/repository to tell OTHER users' installs whether
+they're compatible) had drifted out of sync with what we actually compiled against. Once nothing in
+the codebase needed a 3.2-only API anymore, this was reverted back to `3.0.0.2017-beta` - verified by
+a clean rebuild (0 compile errors, deployed fine) after the change. Keep the package version and
+`MinimumApplicationVersion` honestly in sync going forward: if a future feature genuinely needs a
+newer NINA API, bump both together and document why (like the LED feature did); if that feature is
+later removed, revert the package version too, don't leave it bumped "just in case".
+
+Side note on the WebView2/SQLite bloat mentioned earlier in this project's history: reverting to
+`3.0.0.2017-beta` removed the `Microsoft.Web.WebView2.*` files from the build output, but
+`SQLite.Interop.dll`/`sni.dll` (native runtime files under `runtimes/*/native/`) are still present
+even on this older package version - so that part of the bloat isn't caused by the NINA.Plugin
+version at all, it's a transitive dependency from something else (likely `TapoConnect`). Harmless so
+far, not investigated further.
 
 ## How TP-Link cloud control actually works (reverse-engineered, not officially documented)
 

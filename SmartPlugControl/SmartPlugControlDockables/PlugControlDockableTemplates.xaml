@@ -23,8 +23,8 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                <Button Content="Turn On All" Command="{Binding TurnOnAllCommand}" Margin="0,0,5,0" Padding="8,4" />
-                <Button Content="Turn Off All" Command="{Binding TurnOffAllCommand}" Margin="0,0,5,0" Padding="8,4" />
+                <Button Content="All Plugs On" Command="{Binding TurnOnAllCommand}" Margin="0,0,5,0" Padding="8,4" />
+                <Button Content="All Plugs Off" Command="{Binding TurnOffAllCommand}" Margin="0,0,5,0" Padding="8,4" />
                 <Button Content="LEDs On" Command="{Binding LedsOnCommand}" Margin="0,0,5,0" Padding="8,4" />
                 <Button Content="LEDs Off" Command="{Binding LedsOffCommand}" Padding="8,4" />
             </StackPanel>
@@ -47,7 +47,7 @@
                     <DataGridTextColumn Header="Equipment" Binding="{Binding EquipmentName, UpdateSourceTrigger=PropertyChanged}" Width="150" />
                     <DataGridTextColumn Header="Brand" Binding="{Binding Brand}" IsReadOnly="True" Width="70" />
 
-                    <DataGridTemplateColumn Header="On/Off" Width="70">
+                    <DataGridTemplateColumn Header="On/Off" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox
@@ -59,7 +59,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="LED" Width="60">
+                    <DataGridTemplateColumn Header="LED" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox
@@ -72,7 +72,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="Protected" Width="80">
+                    <DataGridTemplateColumn Header="Protected" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox

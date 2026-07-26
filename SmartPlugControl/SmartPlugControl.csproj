@@ -19,9 +19,11 @@
           e.g. Newtonsoft.Json, Accord, EntityFramework...) without copying local duplicates of them -
           the host process already has them loaded. Only genuinely plugin-specific dependencies below
           (TapoConnect and its own transitive deps, ProtectedData) need to be physically copied.  -->
-    <!--  3.2.0.9001 matches the installed NINA app version exactly (see CLAUDE.md) - needed for
-          ISequenceMediator.SequenceStarting/SequenceFinished, which don't exist in 3.0.0.2017-beta.  -->
-    <PackageReference Include="NINA.Plugin" Version="3.2.0.9001" ExcludeAssets="runtime" />
+    <!--  Matches Properties/AssemblyInfo.cs's MinimumApplicationVersion ("3.0.0.2017") - keep these
+          two in sync (see CLAUDE.md). Was bumped to 3.2.0.9001 for a since-removed feature that
+          needed ISequenceMediator.SequenceStarting/SequenceFinished; reverted once nothing in the
+          codebase needed a 3.2-only API anymore.  -->
+    <PackageReference Include="NINA.Plugin" Version="3.0.0.2017-beta" ExcludeAssets="runtime" />
     <PackageReference Include="TapoConnect" Version="3.2.4" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
