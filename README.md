@@ -28,14 +28,20 @@ you other than requiring an internet connection for plug control.
 
 ## Installation
 
-Smart Plug Control isn't in NINA's official plugin repository yet, and there's no packaged release
-build yet either - for now, build it yourself:
+Smart Plug Control isn't in NINA's official plugin repository yet, so for now it's a manual install -
+NINA only auto-extracts a plugin zip when it downloads it itself from the official repository; a zip
+placed here by hand has to be extracted by you first, NINA will not do it for you.
 
-1. Build it - see [Building from source](#building-from-source). (A packaged
-   [Release](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) with a
-   ready-to-copy zip is planned but not published yet.)
-2. Close NINA completely if it's running.
-3. Copy the plugin folder into `%LOCALAPPDATA%\NINA\Plugins\3.0.0\`.
+1. Get the plugin files, either by downloading and **extracting** the zip from the
+   [Releases](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) page (not
+   published yet - for now, build it yourself, see [Building from source](#building-from-source)).
+2. Close NINA completely if it's running (check Task Manager too - closing the window doesn't always
+   kill the process, and a still-running NINA will keep a lock on files you're trying to replace).
+3. Make sure `%LOCALAPPDATA%\NINA\Plugins\3.0.0\` exists (create it if it doesn't), then place the
+   extracted plugin folder (containing `Crepusculum.NINA.SmartPlugControl.dll` and its dependencies)
+   directly inside it - e.g.
+   `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Crepusculum.NINA.SmartPlugControl\Crepusculum.NINA.SmartPlugControl.dll`.
+   Don't just copy the zip file itself into that folder - it must be extracted first.
 4. Start NINA. The plugin appears under **Options → Plugins** as "Smart Plug Control".
 
 ## Setup
