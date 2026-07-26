@@ -1,3 +1,4 @@
+using Settings = Crepusculum.NINA.SmartPlugControl.Properties.Settings;
 using Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices;
 using CommunityToolkit.Mvvm.Input;
 using NINA.Core.Utility;
@@ -22,8 +23,6 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
     /// </summary>
     [Export(typeof(IDockableVM))]
     public class PlugControlDockableVM : DockableVM {
-        private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
-
         private readonly IPlugRegistryService registry;
         private readonly CancellationTokenSource pollCts = new CancellationTokenSource();
 
@@ -91,7 +90,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                 }
 
                 try {
-                    await Task.Delay(PollInterval, token);
+                    // Read fresh each cycle so a change in Options takes effect on the next tick,
+                    // without requiring a NINA restart.
+                    var interval = TimeSpan.FromSeconds(Math.Max(1, Settings.Default.RefreshIntervalSeconds));
+                    await Task.Delay(interval, token);
                 } catch (OperationCanceledException) {
                     break;
                 }

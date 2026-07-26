@@ -7,14 +7,34 @@
     <!--  Furthermore the Resource Dictionary has to be exported via code behind export attributes  -->
     <DataTemplate x:Key="Smart Plug Control_Options">
         <StackPanel Orientation="Vertical">
-            <!--  Thresholds, refresh interval, and LED start/end-of-sequence options will be added here (Phase 7)  -->
+            <TextBlock Text="TP-Link account" FontWeight="Bold" Margin="0,0,0,5" />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                <TextBlock Text="TP-Link username/email" VerticalAlignment="Center" MinWidth="160" />
+                <TextBlock Text="Username/email" VerticalAlignment="Center" MinWidth="160" />
                 <TextBox MinWidth="200" Text="{Binding TpLinkUsername, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <TextBlock Text="TP-Link password" VerticalAlignment="Center" MinWidth="160" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Password" VerticalAlignment="Center" MinWidth="160" />
                 <TextBox MinWidth="200" Text="{Binding TpLinkPassword, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <TextBlock Text="Consumption alerts (used once alert notifications are built)" FontWeight="Bold" Margin="0,0,0,5" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <TextBlock Text="Max consumption threshold (W, 0 = disabled)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding MaxConsumptionThresholdWatts, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Preventive alert (% of max)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding PreventiveAlertPercent, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <TextBlock Text="LED behavior" FontWeight="Bold" Margin="0,0,0,5" />
+            <CheckBox Content="Turn off all LEDs when a sequence starts" IsChecked="{Binding LedsOffAtSequenceStart}" Margin="0,0,0,5" />
+            <CheckBox Content="Turn on all LEDs when a sequence finishes" IsChecked="{Binding LedsOnAtSequenceFinish}" Margin="0,0,0,15" />
+
+            <TextBlock Text="Polling" FontWeight="Bold" Margin="0,0,0,5" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Equipment page refresh interval (s)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding RefreshIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
             <TextBlock Text="Plugs on this account - only checked plugs show up in the equipment page and sequencer:" Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500" />

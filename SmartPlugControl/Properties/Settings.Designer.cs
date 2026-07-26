@@ -61,5 +61,66 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
                 this["TpLinkPasswordProtected"] = value;
             }
         }
+
+        /// <summary>0 means no threshold configured (Phase 6 alerts are not built yet).</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public double MaxConsumptionThresholdWatts {
+            get {
+                return ((double)(this["MaxConsumptionThresholdWatts"]));
+            }
+            set {
+                this["MaxConsumptionThresholdWatts"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("80")]
+        public int PreventiveAlertPercent {
+            get {
+                return ((int)(this["PreventiveAlertPercent"]));
+            }
+            set {
+                this["PreventiveAlertPercent"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LedsOffAtSequenceStart {
+            get {
+                return ((bool)(this["LedsOffAtSequenceStart"]));
+            }
+            set {
+                this["LedsOffAtSequenceStart"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LedsOnAtSequenceFinish {
+            get {
+                return ((bool)(this["LedsOnAtSequenceFinish"]));
+            }
+            set {
+                this["LedsOnAtSequenceFinish"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10")]
+        public int RefreshIntervalSeconds {
+            get {
+                return ((int)(this["RefreshIntervalSeconds"]));
+            }
+            set {
+                this["RefreshIntervalSeconds"] = value;
+            }
+        }
     }
 }

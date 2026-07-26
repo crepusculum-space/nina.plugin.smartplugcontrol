@@ -60,10 +60,29 @@ only control") — do not reintroduce local IP-based control (e.g. via `Aldaviva
   a real device to confirm whether the cloud-relay trick even works for it - don't assume it does.
   Tapo devices are still *discovered* (`PlugRegistryService` lists them) but have no driver.
 
-**Not started**: real settings page (currently just 2 plaintext credential fields + a plug-visibility
-grid bolted onto Options.xaml as a stopgap - no threshold/refresh-interval/LED-start-end-of-sequence
-settings yet), consumption-threshold alerts/notifications, community-facing docs for adding other
-brands.
+**Not started**: consumption-threshold alert notifications (Phase 6 - blocked on the user getting
+energy-monitoring-capable hardware; Tapo and Kasa plugs with monitoring are on order, none of the
+currently-owned devices support it), community-facing docs for adding other brands.
+
+## Settings page (Phase 7, done)
+
+Real settings now exist (`Options.xaml` + bindable properties on the `SmartPlugControl` manifest
+class, all persisted via `Settings.Default`): consumption threshold (Watts) + preventive alert %,
+"turn LEDs off at sequence start"/"on at sequence finish" checkboxes, and a configurable equipment-
+page refresh interval (was hardcoded to 10s, now `PlugControlDockableVM`'s poll loop reads
+`Settings.Default.RefreshIntervalSeconds` fresh every cycle). The threshold/percent fields are wired
+to storage and UI only - nothing reads them yet, since Phase 6 (alerts) isn't built.
+
+**LED-at-sequence-start/finish required bumping the `NINA.Plugin` NuGet package** from
+`3.0.0.2017-beta` to `3.2.0.9001` (matching the actually-installed NINA app version exactly) -
+`ISequenceMediator.SequenceStarting`/`SequenceFinished` don't exist at all in `3.0.0.2017-beta`,
+only in newer NINA versions. If a NINA API you need doesn't compile, check whether it exists at the
+SDK version you're pinned to before assuming it's a bug in your own code - compare
+`github.com/isbeorn/nina` at the matching git tag (e.g. `Version-3.0`) vs `develop`. **Side effect to
+watch**: the newer package version pulls in a few more transitive runtime assets we don't need
+(`Microsoft.Web.WebView2.*`, native SQLite/Ports libs) that end up copied into the plugin folder
+despite `ExcludeAssets="runtime"` - harmless bloat so far, but worth tightening later if it causes
+version-conflict problems.
 
 ## How TP-Link cloud control actually works (reverse-engineered, not officially documented)
 
