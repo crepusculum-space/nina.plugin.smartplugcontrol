@@ -23,8 +23,9 @@ you other than requiring an internet connection for plug control.
 
 - N.I.N.A. 3.0.0.2017 or newer.
 - A TP-Link (Kasa) account with your smart plugs already set up in the Kasa app.
-- **Kasa devices only for now.** Tapo devices are discovered and listed, but not yet controllable -
-  see [Limitations](#limitations).
+- **Older-generation Kasa devices only for now** (e.g. HS103, KP303). Tapo devices, and newer
+  Kasa models that use the same protocol family as Tapo (e.g. the KP125M), are discovered and
+  listed, but not yet controllable - see [Limitations](#limitations).
 
 ## Installation
 
@@ -104,11 +105,13 @@ group - that's how NINA categorizes all conditions):
 
 ## Limitations
 
-- **Tapo isn't supported yet.** Tapo devices show up in the plug list (discovery works for both
-  brands on the same TP-Link account) but can't be turned on/off - Tapo's local protocol needs real
-  hardware to confirm the cloud-relay approach works before it's built.
-- **Consumption-based alerts aren't built yet.** The threshold/percentage settings exist but nothing
-  reads them until that feature lands.
+- **Tapo isn't supported yet, and neither are newer-generation Kasa devices.** TP-Link has migrated
+  newer Kasa models (e.g. the KP125M) to the same protocol family Tapo uses - different from the
+  legacy protocol older models (HS103, KP303) still use. Both show up in the plug list (discovery
+  works for every device on the account regardless of protocol generation) but can't be turned
+  on/off yet.
+- **Consumption Threshold Changed hasn't been verified end-to-end.** None of the currently-supported
+  devices report energy monitoring data.
 - A plug's on/off state is only re-checked by the sequencer between instructions, never while one is
   running - a trigger can't react mid-instruction to a change that happens during a long exposure or
   wait.

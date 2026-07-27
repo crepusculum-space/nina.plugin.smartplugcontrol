@@ -109,11 +109,18 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 foreach (var device in cloudDevices) {
                     token.ThrowIfCancellationRequested();
 
-                    if (device.Brand != PlugBrand.Kasa) {
-                        // Tapo control isn't implemented yet (see plan) - still list the device so
-                        // persisted config isn't lost once it's supported, but with unknown state.
-                        var tapoData = persisted.TryGetValue(device.DeviceId, out var td) ? td : new PlugPersistedData { PlugId = device.DeviceId };
-                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, tapoData, isOn: null, power: null, supportsLed: false));
+                    // Only the legacy "IOT.*" protocol generation (older Kasa models like HS103/KP303)
+                    // is implemented. Tapo devices AND newer "SMART.*"-protocol Kasa models (e.g. the
+                    // KP125M, confirmed via real DeviceType logging) share the same KLAP-based protocol,
+                    // which isn't implemented yet (see plan) - checking the DeviceType prefix directly
+                    // instead of just Brand != Kasa catches this case too, rather than attempting (and
+                    // always failing) legacy passthrough commands against a device that can't answer them.
+                    bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
+                    if (!usesLegacyProtocol) {
+                        // Still list the device so persisted config isn't lost once it's supported,
+                        // but with unknown state.
+                        var unsupportedData = persisted.TryGetValue(device.DeviceId, out var ud) ? ud : new PlugPersistedData { PlugId = device.DeviceId };
+                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, unsupportedData, isOn: null, power: null, supportsLed: false));
                         continue;
                     }
 

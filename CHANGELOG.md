@@ -38,8 +38,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   cloud integrations show excessive re-authentication (not moderate polling in general) is what
   triggers the API's undocumented rate limit.
 
+### Fixed
+
+- Errors are now written to NINA's log (in addition to the on-screen notification), so a failure's
+  actual exception and stack trace aren't lost the moment the notification disappears.
+- Newer-generation Kasa devices (e.g. the KP125M) use the same modern protocol family as Tapo, not
+  the legacy protocol older models (HS103, KP303) use - the plugin was incorrectly attempting (and
+  always failing) legacy commands against them. They're now correctly treated as not-yet-supported,
+  same as Tapo, instead of erroring on every refresh.
+
 ### Known limitations
 
-- Tapo devices are discovered but not yet controllable - only Kasa is supported for now.
-- Consumption Threshold Changed can't be verified end-to-end yet: none of the currently-owned
+- Only older-generation Kasa devices (using the legacy protocol - e.g. HS103, KP303) are
+  controllable. Tapo devices and newer-generation Kasa devices (e.g. KP125M) share a different,
+  not-yet-implemented protocol - they're discovered and listed, but can't be turned on/off yet.
+- Consumption Threshold Changed can't be verified end-to-end yet: none of the currently-supported
   devices support energy monitoring.
