@@ -27,9 +27,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.2017")]
 
 // The license your plugin code is using
-[assembly: AssemblyMetadata("License", "MPL-2.0")]
+[assembly: AssemblyMetadata("License", "MIT")]
 // The url to the license
-[assembly: AssemblyMetadata("LicenseURL", "https://www.mozilla.org/en-US/MPL/2.0/")]
+[assembly: AssemblyMetadata("LicenseURL", "https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/blob/main/LICENSE")]
 // The repository where your pluggin is hosted
 [assembly: AssemblyMetadata("Repository", "https://github.com/crepusculum-space/nina.plugin.smartplugcontrol")]
 
