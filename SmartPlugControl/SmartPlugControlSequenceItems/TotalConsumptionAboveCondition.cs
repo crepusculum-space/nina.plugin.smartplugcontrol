@@ -5,8 +5,8 @@ using NINA.Sequencer.SequenceItem;
 using System.ComponentModel.Composition;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
-    [ExportMetadata("Name", "Total Consumption Above")]
-    [ExportMetadata("Description", "True as long as the combined power draw of all monitored plugs stays above the threshold.")]
+    [ExportMetadata("Name", "Consumption Above")]
+    [ExportMetadata("Description", "True as long as the selected plug's power draw stays above its preventive alert percentage of its configured max threshold (set on the equipment page).")]
     [ExportMetadata("Icon", "Crepusculum.NINA.SmartPlugControl_SequenceItemSVG")]
     [ExportMetadata("Category", "Smart Plug Control")]
     [Export(typeof(ISequenceCondition))]
@@ -21,10 +21,13 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
             CopyThresholdMetaData(copyMe);
         }
 
-        public override bool Check(ISequenceItem previousItem, ISequenceItem nextItem) => GetTotalWatts() > ThresholdWatts;
+        public override bool Check(ISequenceItem previousItem, ISequenceItem nextItem) {
+            double? preventiveWatts = GetPreventiveWatts();
+            return preventiveWatts != null && GetWatts() > preventiveWatts.Value;
+        }
 
         public override object Clone() => new TotalConsumptionAboveCondition(this);
 
-        public override string ToString() => $"Category: {Category}, Item: {nameof(TotalConsumptionAboveCondition)}, ThresholdWatts: {ThresholdWatts}";
+        public override string ToString() => $"Category: {Category}, Item: {nameof(TotalConsumptionAboveCondition)}, SelectedPlugId: {SelectedPlugId}, PreventiveAlertPercent: {PreventiveAlertPercent}";
     }
 }

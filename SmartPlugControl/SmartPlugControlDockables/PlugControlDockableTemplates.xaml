@@ -83,12 +83,32 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="Power" Width="80">
+                    <DataGridTemplateColumn Header="Power" Width="130">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock
-                                    Text="{Binding Watts, StringFormat={}{0:F1} W}"
+                                    Text="{Binding PowerDisplay}"
                                     Visibility="{Binding HasPower, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="Max (A@12V)" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox
+                                    Text="{Binding MaxAmpsAt12V, UpdateSourceTrigger=PropertyChanged}"
+                                    Visibility="{Binding SupportsPowerMonitoring, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="PSU eff (%)" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox
+                                    Text="{Binding PsuEfficiencyPercent, UpdateSourceTrigger=PropertyChanged}"
+                                    Visibility="{Binding SupportsPowerMonitoring, Converter={StaticResource BoolToVisibilityConverter}}" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

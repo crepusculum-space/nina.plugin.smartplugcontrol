@@ -73,70 +73,25 @@ namespace Crepusculum.NINA.SmartPlugControl {
             }
         }
 
-        public double MaxConsumptionThresholdWatts {
-            get => Settings.Default.MaxConsumptionThresholdWatts;
-            set {
-                Settings.Default.MaxConsumptionThresholdWatts = value;
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
-            }
-        }
-
-        public int PreventiveAlertPercent {
-            get => Settings.Default.PreventiveAlertPercent;
-            set {
-                Settings.Default.PreventiveAlertPercent = value;
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
-            }
-        }
-
-        // Most astro equipment (Pegasus Powerboxes, etc.) is rated in Amps at 12V DC, not Watts - but
-        // a Kasa/Tapo plug only ever measures Watts on the AC side, upstream of the DC power supply.
-        // This is a convenience calculator: entering an Amps rating here computes and overwrites
-        // MaxConsumptionThresholdWatts, using PsuEfficiencyPercent to estimate the AC-side draw needed
-        // to deliver that much DC power. It's always an estimate - the plugin has no way to measure a
-        // specific supply's actual efficiency - so treat the resulting Watts value as approximate and
-        // set PreventiveAlertPercent conservatively to leave margin for that uncertainty.
-        public double MaxConsumptionThresholdAmps {
-            get => Settings.Default.MaxConsumptionThresholdAmps;
-            set {
-                Settings.Default.MaxConsumptionThresholdAmps = value;
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
-                RecomputeWattsFromAmps();
-            }
-        }
-
-        public int PsuEfficiencyPercent {
-            get => Settings.Default.PsuEfficiencyPercent;
-            set {
-                // 0% would divide by zero below; clamp to a sane minimum instead.
-                Settings.Default.PsuEfficiencyPercent = value < 1 ? 1 : value;
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
-                RecomputeWattsFromAmps();
-            }
-        }
-
-        private const double DcSupplyVolts = 12.0;
-
-        private void RecomputeWattsFromAmps() {
-            double amps = Settings.Default.MaxConsumptionThresholdAmps;
-            if (amps <= 0) {
-                // Calculator not in use - leave a directly-entered Watts value alone.
-                return;
-            }
-            double dcWatts = amps * DcSupplyVolts;
-            double acWatts = dcWatts / (Settings.Default.PsuEfficiencyPercent / 100.0);
-            MaxConsumptionThresholdWatts = acWatts;
-        }
-
         public int RefreshIntervalSeconds {
             get => Settings.Default.RefreshIntervalSeconds;
             set {
                 // A refresh interval of 0 or less would spin the poll loop pointlessly fast.
                 Settings.Default.RefreshIntervalSeconds = value < 1 ? 1 : value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+            }
+        }
+
+        // Display-only: lets the equipment page show an estimated Amps figure (P = V / I) next to the
+        // measured Watts reading. Unrelated to the per-plug consumption-alert thresholds (equipment
+        // page) or the sequencer trigger/conditions, which work in Amps@12V DC, a different voltage
+        // domain entirely (downstream DC equipment vs. this AC line voltage).
+        public double LineVoltage {
+            get => Settings.Default.LineVoltage;
+            set {
+                // 0V would divide by zero when PlugRowViewModel estimates Amps from this.
+                Settings.Default.LineVoltage = value < 1 ? 1 : value;
                 CoreUtil.SaveSettings(Settings.Default);
                 RaisePropertyChanged();
             }

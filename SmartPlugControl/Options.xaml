@@ -18,32 +18,19 @@
                 <PasswordBox MinWidth="200" local:PasswordBoxAssistant.BoundPassword="{Binding TpLinkPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
-            <TextBlock Text="Consumption alerts" FontWeight="Bold" Margin="0,0,0,5" />
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                <TextBlock Text="Max consumption threshold (W, 0 = disabled)" VerticalAlignment="Center" MinWidth="260" />
-                <TextBox MinWidth="80" Text="{Binding MaxConsumptionThresholdWatts, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                <TextBlock Text="Preventive alert (% of max)" VerticalAlignment="Center" MinWidth="260" />
-                <TextBox MinWidth="80" Text="{Binding PreventiveAlertPercent, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
-
-            <TextBlock Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500">
-                <Run Text="Or, if your equipment is rated in Amps at 12V DC instead of Watts (e.g. a Pegasus Powerbox) - entering an Amps value here overwrites the Watts threshold above using an estimated AC-side conversion. Always an estimate, since a Kasa/Tapo plug can only measure AC-side Watts, not the actual DC-side draw or your supply's real efficiency - set the preventive % conservatively to leave margin for that." />
-            </TextBlock>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                <TextBlock Text="Max consumption threshold (A @ 12V, 0 = unused)" VerticalAlignment="Center" MinWidth="260" />
-                <TextBox MinWidth="80" Text="{Binding MaxConsumptionThresholdAmps, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                <TextBlock Text="Estimated PSU efficiency (%)" VerticalAlignment="Center" MinWidth="260" />
-                <TextBox MinWidth="80" Text="{Binding PsuEfficiencyPercent, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
-
             <TextBlock Text="Polling" FontWeight="Bold" Margin="0,0,0,5" />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                 <TextBlock Text="Equipment page refresh interval (s)" VerticalAlignment="Center" MinWidth="260" />
                 <TextBox MinWidth="80" Text="{Binding RefreshIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <TextBlock Text="Power display" FontWeight="Bold" Margin="0,0,0,5" />
+            <TextBlock Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500">
+                <Run Text="AC line voltage used to show an estimated Amps figure next to the Watts reading on the equipment page (P = V x I). Display only." />
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Line voltage (V)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding LineVoltage, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
             <TextBlock Text="Plugs on this account - only checked plugs show up in the equipment page and sequencer:" Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500" />

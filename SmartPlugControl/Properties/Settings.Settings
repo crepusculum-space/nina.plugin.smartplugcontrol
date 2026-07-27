@@ -11,20 +11,11 @@
     <Setting Name="TpLinkPasswordProtected" Type="System.String" Scope="User">
       <Value Profile="(Default)"></Value>
     </Setting>
-    <Setting Name="MaxConsumptionThresholdWatts" Type="System.Double" Scope="User">
-      <Value Profile="(Default)">0</Value>
-    </Setting>
-    <Setting Name="PreventiveAlertPercent" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">80</Value>
-    </Setting>
-    <Setting Name="MaxConsumptionThresholdAmps" Type="System.Double" Scope="User">
-      <Value Profile="(Default)">0</Value>
-    </Setting>
-    <Setting Name="PsuEfficiencyPercent" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">85</Value>
-    </Setting>
     <Setting Name="RefreshIntervalSeconds" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">10</Value>
+    </Setting>
+    <Setting Name="LineVoltage" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">120</Value>
     </Setting>
   </Settings>
 </SettingsFile>

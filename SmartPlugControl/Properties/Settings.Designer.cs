@@ -62,65 +62,6 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
             }
         }
 
-        /// <summary>0 means no threshold configured. Can be entered directly, or computed from
-        /// MaxConsumptionThresholdAmps/PsuEfficiencyPercent - see SmartPlugControl.cs.</summary>
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
-        public double MaxConsumptionThresholdWatts {
-            get {
-                return ((double)(this["MaxConsumptionThresholdWatts"]));
-            }
-            set {
-                this["MaxConsumptionThresholdWatts"] = value;
-            }
-        }
-
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("80")]
-        public int PreventiveAlertPercent {
-            get {
-                return ((int)(this["PreventiveAlertPercent"]));
-            }
-            set {
-                this["PreventiveAlertPercent"] = value;
-            }
-        }
-
-        /// <summary>0 means this Amps-based calculator isn't in use (Watts was entered directly
-        /// instead). Most astro equipment (Pegasus Powerboxes, etc.) is rated in Amps at 12V DC, not
-        /// Watts - but a Kasa/Tapo plug only ever measures Watts on the 110V/230V AC side, upstream of
-        /// the DC power supply. This lets the user enter the DC-side Amps rating they actually know,
-        /// converted to an AC-side Watts threshold via PsuEfficiencyPercent (see
-        /// SmartPlugControl.MaxConsumptionThresholdAmps setter for the actual conversion math).</summary>
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
-        public double MaxConsumptionThresholdAmps {
-            get {
-                return ((double)(this["MaxConsumptionThresholdAmps"]));
-            }
-            set {
-                this["MaxConsumptionThresholdAmps"] = value;
-            }
-        }
-
-        /// <summary>Estimated AC-to-DC power supply efficiency (%), since a Kasa/Tapo plug can only
-        /// measure AC-side Watts, never the DC-side draw directly. This is always an estimate - the
-        /// exact efficiency of a given supply isn't something the plugin can measure.</summary>
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("85")]
-        public int PsuEfficiencyPercent {
-            get {
-                return ((int)(this["PsuEfficiencyPercent"]));
-            }
-            set {
-                this["PsuEfficiencyPercent"] = value;
-            }
-        }
-
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("10")]
@@ -130,6 +71,21 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
             }
             set {
                 this["RefreshIntervalSeconds"] = value;
+            }
+        }
+
+        /// <summary>AC line voltage used only to estimate an Amps figure alongside the measured Watts
+        /// reading on the equipment page (P = V x I) - purely a display convenience, not used anywhere
+        /// in the threshold/alert logic. Default 120V (North America); change for a 230V site.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("120")]
+        public double LineVoltage {
+            get {
+                return ((double)(this["LineVoltage"]));
+            }
+            set {
+                this["LineVoltage"] = value;
             }
         }
     }

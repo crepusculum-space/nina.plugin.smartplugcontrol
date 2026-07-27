@@ -7,6 +7,7 @@ using NINA.Core.Utility.Notification;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Settings = Crepusculum.NINA.SmartPlugControl.Properties.Settings;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
     /// <summary>
@@ -44,6 +45,19 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
         public bool HasPower => model.LastPower != null;
         public double? Watts => model.LastPower?.Watts;
 
+        // Estimated, not measured - the plug only ever reports AC-side Watts; Amps here is a display
+        // convenience derived via P = V x I using the configured line voltage (Options), not an
+        // actual current reading, and doesn't account for the power factor of the load's own supply.
+        public string PowerDisplay {
+            get {
+                if (Watts == null) {
+                    return null;
+                }
+                double amps = Watts.Value / Settings.Default.LineVoltage;
+                return $"{Watts.Value:F1} W / {amps:F2} A";
+            }
+        }
+
         public string EquipmentName {
             get => model.EquipmentName;
             set {
@@ -52,6 +66,37 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                 }
                 model.EquipmentName = value ?? string.Empty;
                 registry.SetEquipmentName(PlugId, model.EquipmentName);
+                RaisePropertyChanged();
+            }
+        }
+
+        // Invariant properties of whatever's plugged in here (e.g. a Pegasus Powerbox rated 8A@12V) -
+        // configured once here rather than per sequence item; the consumption trigger/loop conditions
+        // read these via the plug's own PlugViewModel.MaxThresholdWatts. Only meaningful, and only
+        // shown in the equipment page, for plugs that support energy monitoring at all.
+        public bool SupportsPowerMonitoring => model.SupportsPowerMonitoring;
+
+        public double MaxAmpsAt12V {
+            get => model.MaxAmpsAt12V;
+            set {
+                if (model.MaxAmpsAt12V == value) {
+                    return;
+                }
+                model.MaxAmpsAt12V = value < 0 ? 0 : value;
+                registry.SetMaxAmpsAt12V(PlugId, model.MaxAmpsAt12V);
+                RaisePropertyChanged();
+            }
+        }
+
+        public int PsuEfficiencyPercent {
+            get => model.PsuEfficiencyPercent;
+            set {
+                int clamped = value < 1 ? 1 : value;
+                if (model.PsuEfficiencyPercent == clamped) {
+                    return;
+                }
+                model.PsuEfficiencyPercent = clamped;
+                registry.SetPsuEfficiencyPercent(PlugId, clamped);
                 RaisePropertyChanged();
             }
         }

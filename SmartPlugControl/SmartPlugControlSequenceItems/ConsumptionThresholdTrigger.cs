@@ -7,35 +7,39 @@ using NINA.Sequencer.SequenceItem;
 using NINA.Sequencer.Trigger;
 using System;
 using System.ComponentModel.Composition;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Settings = Crepusculum.NINA.SmartPlugControl.Properties.Settings;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
-    // Mirrors PlugStateChangedTrigger exactly (same baseline/transition/notify-only pattern) - no
-    // per-instance configuration needed since it reads the global MaxConsumptionThresholdWatts/
-    // PreventiveAlertPercent settings (Options page) rather than a plug/threshold picked here.
+    // Mirrors PlugStateChangedTrigger (same baseline/transition/notify-only pattern). Watches a single
+    // plug (picked here, via PlugTriggerBase - its Validate() already requires a plug be selected)
+    // against a preventive alert percentage (also picked here, since different sections of the same
+    // sequence may want a different tolerance for the same plug, e.g. more tolerant during a brief
+    // flats routine) of that plug's own max threshold - MaxAmpsAt12V/PsuEfficiencyPercent, configured
+    // once on the equipment page since they're essentially invariant properties of whatever's plugged
+    // in, not something to re-enter here.
     [ExportMetadata("Name", "Consumption Threshold Changed")]
-    [ExportMetadata("Description", "Notifies when total consumption across all monitored plugs crosses the preventive alert percentage of the configured maximum (see Options).")]
+    [ExportMetadata("Description", "Notifies when the selected plug's power draw crosses its preventive alert percentage of its configured max threshold (set on the equipment page).")]
     [ExportMetadata("Icon", "Crepusculum.NINA.SmartPlugControl_SequenceItemSVG")]
     [ExportMetadata("Category", "Smart Plug Control")]
     [Export(typeof(ISequenceTrigger))]
     [JsonObject(MemberSerialization.OptIn)]
-    public class ConsumptionThresholdTrigger : SequenceTrigger {
-        private readonly IPlugRegistryService registry;
-
+    public class ConsumptionThresholdTrigger : PlugTriggerBase {
         // Runtime-only baseline, deliberately not persisted - each sequence run starts fresh rather
         // than comparing against whatever the reading happened to be the last time NINA ran.
         private bool? wasOverThreshold;
 
+        [JsonProperty]
+        public int PreventiveAlertPercent { get; set; } = 80;
+
         [ImportingConstructor]
-        public ConsumptionThresholdTrigger(IPlugRegistryService registry) {
-            this.registry = registry;
+        public ConsumptionThresholdTrigger(IPlugRegistryService registry) : base(registry) {
         }
 
         public ConsumptionThresholdTrigger(ConsumptionThresholdTrigger copyMe) : this(copyMe.registry) {
             CopyMetaData(copyMe);
+            CopyPickerMetaData(copyMe);
+            PreventiveAlertPercent = copyMe.PreventiveAlertPercent;
         }
 
         public override bool ShouldTrigger(ISequenceItem previousItem, ISequenceItem nextItem) {
@@ -48,18 +52,14 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
             return CheckShouldTrigger();
         }
 
-        private double GetTotalWatts() =>
-            registry.Plugs.Where(p => p.LastPower != null).Sum(p => p.LastPower.Watts);
-
         private bool CheckShouldTrigger() {
-            double maxWatts = Settings.Default.MaxConsumptionThresholdWatts;
-            if (maxWatts <= 0) {
-                // No threshold configured in Options - nothing to compare against.
+            double? preventiveWatts = GetPreventiveWatts();
+            if (preventiveWatts == null) {
+                // No max threshold configured for this plug (see equipment page) - nothing to compare.
                 return false;
             }
 
-            double preventiveWatts = maxWatts * Settings.Default.PreventiveAlertPercent / 100.0;
-            bool isOver = GetTotalWatts() >= preventiveWatts;
+            bool isOver = GetCurrentWatts() >= preventiveWatts.Value;
 
             if (wasOverThreshold == null) {
                 // First observation this run - establish the baseline, don't fire on startup.
@@ -70,16 +70,30 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
             return isOver != wasOverThreshold;
         }
 
+        private double? GetPreventiveWatts() => SelectedPlug?.MaxThresholdWatts * (PreventiveAlertPercent / 100.0);
+
+        private double GetCurrentWatts() => SelectedPlug?.LastPower?.Watts ?? 0;
+
         public override Task Execute(ISequenceContainer context, IProgress<ApplicationStatus> progress, CancellationToken token) {
-            double totalWatts = GetTotalWatts();
-            double maxWatts = Settings.Default.MaxConsumptionThresholdWatts;
-            double preventiveWatts = maxWatts * Settings.Default.PreventiveAlertPercent / 100.0;
-            bool isOver = totalWatts >= preventiveWatts;
+            var plug = SelectedPlug;
+            double maxAmps = plug?.MaxAmpsAt12V ?? 0;
+            int psuEfficiencyPercent = plug?.PsuEfficiencyPercent ?? 100;
+            double currentWatts = GetCurrentWatts();
+            double? preventiveWatts = GetPreventiveWatts();
+
+            // Amps here are always estimates derived from the measured AC-side Watts (see
+            // PlugViewModel.MaxThresholdWatts) - the plug itself only ever measures Watts. The
+            // preventive Amps figure doesn't need that conversion though: since it's a fixed percentage
+            // of maxAmps, the PSU efficiency estimate cancels out of that particular ratio exactly.
+            double preventiveAmps = maxAmps * PreventiveAlertPercent / 100.0;
+            double currentAmpsEstimate = currentWatts * (psuEfficiencyPercent / 100.0) / 12.0;
+
+            bool isOver = preventiveWatts != null && currentWatts >= preventiveWatts.Value;
 
             if (isOver) {
-                Notification.ShowWarning($"Total consumption is {totalWatts:F1} W - at or above your preventive alert level ({preventiveWatts:F1} W, {Settings.Default.PreventiveAlertPercent}% of {maxWatts:F1} W).");
+                Notification.ShowWarning($"'{plug?.DisplayName}' is drawing an estimated {currentAmpsEstimate:F2} A - at or above your preventive alert level ({preventiveAmps:F2} A, {PreventiveAlertPercent}% of {maxAmps:F1} A).");
             } else {
-                Notification.ShowInformation($"Total consumption is back down to {totalWatts:F1} W, below the preventive alert level ({preventiveWatts:F1} W).");
+                Notification.ShowInformation($"'{plug?.DisplayName}' is back down to an estimated {currentAmpsEstimate:F2} A, below the preventive alert level ({preventiveAmps:F2} A).");
             }
 
             // Re-sync the baseline so this same change isn't reported again next check.
@@ -89,6 +103,6 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
 
         public override object Clone() => new ConsumptionThresholdTrigger(this);
 
-        public override string ToString() => $"Category: {Category}, Item: {nameof(ConsumptionThresholdTrigger)}";
+        public override string ToString() => $"Category: {Category}, Item: {nameof(ConsumptionThresholdTrigger)}, SelectedPlugId: {SelectedPlugId}, PreventiveAlertPercent: {PreventiveAlertPercent}";
     }
 }

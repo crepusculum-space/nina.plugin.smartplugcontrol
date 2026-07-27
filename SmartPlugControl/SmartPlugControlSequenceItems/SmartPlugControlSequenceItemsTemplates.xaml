@@ -78,19 +78,28 @@
         </nina:SequenceBlockView>
     </DataTemplate>
 
-    <!--  Covers both TotalConsumptionBelowCondition and TotalConsumptionAboveCondition.  -->
+    <!--  Covers both TotalConsumptionBelowCondition and TotalConsumptionAboveCondition - a specific
+          plug plus how tolerant to be of its own configured max threshold (see equipment page).  -->
     <DataTemplate DataType="{x:Type local:ConsumptionThresholdConditionBase}">
         <nina:SequenceBlockView>
             <nina:SequenceBlockView.SequenceItemContent>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Threshold (W)" />
-                    <TextBox MinWidth="60" Text="{Binding ThresholdWatts, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Plug" />
+                    <ComboBox
+                        MinWidth="140"
+                        Margin="0,0,10,0"
+                        ItemsSource="{Binding AvailablePlugs}"
+                        SelectedItem="{Binding SelectedPlug}"
+                        DisplayMemberPath="DisplayName" />
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Preventive alert (%)" />
+                    <TextBox MinWidth="40" Text="{Binding PreventiveAlertPercent, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>
     </DataTemplate>
 
-    <!--  Covers PlugStateChangedTrigger (currently the only PlugTriggerBase subclass).  -->
+    <!--  Covers PlugStateChangedTrigger (the only other PlugTriggerBase subclass besides
+          ConsumptionThresholdTrigger below, which needs its own more-specific template).  -->
     <DataTemplate DataType="{x:Type local:PlugTriggerBase}">
         <nina:SequenceBlockView>
             <nina:SequenceBlockView.SequenceItemContent>
@@ -101,6 +110,26 @@
                         ItemsSource="{Binding AvailablePlugs}"
                         SelectedItem="{Binding SelectedPlug}"
                         DisplayMemberPath="DisplayName" />
+                </StackPanel>
+            </nina:SequenceBlockView.SequenceItemContent>
+        </nina:SequenceBlockView>
+    </DataTemplate>
+
+    <!--  ConsumptionThresholdTrigger: same plug + preventive % shape as the conditions above, just on
+          a Trigger base type - WPF prefers this exact-type match over the generic PlugTriggerBase one.  -->
+    <DataTemplate DataType="{x:Type local:ConsumptionThresholdTrigger}">
+        <nina:SequenceBlockView>
+            <nina:SequenceBlockView.SequenceItemContent>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Plug" />
+                    <ComboBox
+                        MinWidth="140"
+                        Margin="0,0,10,0"
+                        ItemsSource="{Binding AvailablePlugs}"
+                        SelectedItem="{Binding SelectedPlug}"
+                        DisplayMemberPath="DisplayName" />
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Preventive alert (%)" />
+                    <TextBox MinWidth="40" Text="{Binding PreventiveAlertPercent, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>
