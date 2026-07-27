@@ -18,14 +18,26 @@
                 <PasswordBox MinWidth="200" local:PasswordBoxAssistant.BoundPassword="{Binding TpLinkPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
-            <TextBlock Text="Consumption alerts (used once alert notifications are built)" FontWeight="Bold" Margin="0,0,0,5" />
+            <TextBlock Text="Consumption alerts" FontWeight="Bold" Margin="0,0,0,5" />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                 <TextBlock Text="Max consumption threshold (W, 0 = disabled)" VerticalAlignment="Center" MinWidth="260" />
                 <TextBox MinWidth="80" Text="{Binding MaxConsumptionThresholdWatts, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                 <TextBlock Text="Preventive alert (% of max)" VerticalAlignment="Center" MinWidth="260" />
                 <TextBox MinWidth="80" Text="{Binding PreventiveAlertPercent, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <TextBlock Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500">
+                <Run Text="Or, if your equipment is rated in Amps at 12V DC instead of Watts (e.g. a Pegasus Powerbox) - entering an Amps value here overwrites the Watts threshold above using an estimated AC-side conversion. Always an estimate, since a Kasa/Tapo plug can only measure AC-side Watts, not the actual DC-side draw or your supply's real efficiency - set the preventive % conservatively to leave margin for that." />
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <TextBlock Text="Max consumption threshold (A @ 12V, 0 = unused)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding MaxConsumptionThresholdAmps, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Estimated PSU efficiency (%)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding PsuEfficiencyPercent, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
             <TextBlock Text="Polling" FontWeight="Bold" Margin="0,0,0,5" />

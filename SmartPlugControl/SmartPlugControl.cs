@@ -90,6 +90,47 @@ namespace Crepusculum.NINA.SmartPlugControl {
             }
         }
 
+        // Most astro equipment (Pegasus Powerboxes, etc.) is rated in Amps at 12V DC, not Watts - but
+        // a Kasa/Tapo plug only ever measures Watts on the AC side, upstream of the DC power supply.
+        // This is a convenience calculator: entering an Amps rating here computes and overwrites
+        // MaxConsumptionThresholdWatts, using PsuEfficiencyPercent to estimate the AC-side draw needed
+        // to deliver that much DC power. It's always an estimate - the plugin has no way to measure a
+        // specific supply's actual efficiency - so treat the resulting Watts value as approximate and
+        // set PreventiveAlertPercent conservatively to leave margin for that uncertainty.
+        public double MaxConsumptionThresholdAmps {
+            get => Settings.Default.MaxConsumptionThresholdAmps;
+            set {
+                Settings.Default.MaxConsumptionThresholdAmps = value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                RecomputeWattsFromAmps();
+            }
+        }
+
+        public int PsuEfficiencyPercent {
+            get => Settings.Default.PsuEfficiencyPercent;
+            set {
+                // 0% would divide by zero below; clamp to a sane minimum instead.
+                Settings.Default.PsuEfficiencyPercent = value < 1 ? 1 : value;
+                CoreUtil.SaveSettings(Settings.Default);
+                RaisePropertyChanged();
+                RecomputeWattsFromAmps();
+            }
+        }
+
+        private const double DcSupplyVolts = 12.0;
+
+        private void RecomputeWattsFromAmps() {
+            double amps = Settings.Default.MaxConsumptionThresholdAmps;
+            if (amps <= 0) {
+                // Calculator not in use - leave a directly-entered Watts value alone.
+                return;
+            }
+            double dcWatts = amps * DcSupplyVolts;
+            double acWatts = dcWatts / (Settings.Default.PsuEfficiencyPercent / 100.0);
+            MaxConsumptionThresholdWatts = acWatts;
+        }
+
         public int RefreshIntervalSeconds {
             get => Settings.Default.RefreshIntervalSeconds;
             set {

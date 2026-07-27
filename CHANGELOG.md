@@ -26,8 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Consumption Threshold Changed (notifies when total consumption crosses the preventive alert
   percentage of the configured maximum - not yet tested against real monitoring-capable hardware).
 - Settings page: TP-Link account credentials (password stored encrypted on disk, masked in the UI),
-  a consumption threshold and preventive alert percentage (reserved for a future alert feature), and
-  a configurable equipment-page refresh interval.
+  a consumption threshold and preventive alert percentage, a configurable equipment-page refresh
+  interval, and an Amps-at-12V calculator (with an estimated PSU efficiency %) for entering the
+  consumption threshold in Amps instead of Watts - most astro equipment (Pegasus Powerboxes, etc.)
+  is rated in Amps at 12V DC, but a Kasa/Tapo plug only measures Watts on the AC side.
 
 ### Changed
 

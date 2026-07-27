@@ -62,7 +62,8 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
             }
         }
 
-        /// <summary>0 means no threshold configured (Phase 6 alerts are not built yet).</summary>
+        /// <summary>0 means no threshold configured. Can be entered directly, or computed from
+        /// MaxConsumptionThresholdAmps/PsuEfficiencyPercent - see SmartPlugControl.cs.</summary>
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("0")]
@@ -84,6 +85,39 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
             }
             set {
                 this["PreventiveAlertPercent"] = value;
+            }
+        }
+
+        /// <summary>0 means this Amps-based calculator isn't in use (Watts was entered directly
+        /// instead). Most astro equipment (Pegasus Powerboxes, etc.) is rated in Amps at 12V DC, not
+        /// Watts - but a Kasa/Tapo plug only ever measures Watts on the 110V/230V AC side, upstream of
+        /// the DC power supply. This lets the user enter the DC-side Amps rating they actually know,
+        /// converted to an AC-side Watts threshold via PsuEfficiencyPercent (see
+        /// SmartPlugControl.MaxConsumptionThresholdAmps setter for the actual conversion math).</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public double MaxConsumptionThresholdAmps {
+            get {
+                return ((double)(this["MaxConsumptionThresholdAmps"]));
+            }
+            set {
+                this["MaxConsumptionThresholdAmps"] = value;
+            }
+        }
+
+        /// <summary>Estimated AC-to-DC power supply efficiency (%), since a Kasa/Tapo plug can only
+        /// measure AC-side Watts, never the DC-side draw directly. This is always an estimate - the
+        /// exact efficiency of a given supply isn't something the plugin can measure.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("85")]
+        public int PsuEfficiencyPercent {
+            get {
+                return ((int)(this["PsuEfficiencyPercent"]));
+            }
+            set {
+                this["PsuEfficiencyPercent"] = value;
             }
         }
 
