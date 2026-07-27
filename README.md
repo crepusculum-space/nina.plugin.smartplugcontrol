@@ -23,9 +23,9 @@ you other than requiring an internet connection for plug control.
 
 - N.I.N.A. 3.0.0.2017 or newer.
 - A TP-Link (Kasa) account with your smart plugs already set up in the Kasa app.
-- **Older-generation Kasa devices only for now** (e.g. HS103, KP303). Tapo devices, and newer
-  Kasa models that use the same protocol family as Tapo (e.g. the KP125M), are discovered and
-  listed, but not yet controllable - see [Limitations](#limitations).
+- **Older-generation Kasa devices only** (e.g. HS103, KP303). Tapo devices, and newer Kasa models
+  that use the same protocol family as Tapo (e.g. the KP125M), are discovered and listed, but will
+  not be controllable - see [Limitations](#limitations) for why.
 
 ## Installation
 
@@ -105,11 +105,16 @@ group - that's how NINA categorizes all conditions):
 
 ## Limitations
 
-- **Tapo isn't supported yet, and neither are newer-generation Kasa devices.** TP-Link has migrated
-  newer Kasa models (e.g. the KP125M) to the same protocol family Tapo uses - different from the
-  legacy protocol older models (HS103, KP303) still use. Both show up in the plug list (discovery
-  works for every device on the account regardless of protocol generation) but can't be turned
-  on/off yet.
+- **Tapo and newer-generation Kasa devices (e.g. the KP125M) will not be supported.** TP-Link has
+  migrated these to a different protocol (KLAP/securePassthrough) than the legacy protocol older
+  Kasa models (HS103, KP303) use - and unlike the legacy protocol, it has no cloud-relay path at
+  all. Every implementation of it (official app included) talks directly to the device's local IP
+  address to perform its cryptographic handshake. Supporting it would mean abandoning this plugin's
+  core design principle - cloud-only control, so one client's NINA instance can never reach another
+  client's equipment on a shared observatory network (see
+  [above](#why-cloud-only-not-local-network)) - so it's a deliberate exclusion, not a "coming soon".
+  Both device families still show up in the plug list (discovery works for every device on the
+  account regardless of protocol generation) for visibility, but can't be turned on/off.
 - **Consumption Threshold Changed hasn't been verified end-to-end.** None of the currently-supported
   devices report energy monitoring data.
 - A plug's on/off state is only re-checked by the sequencer between instructions, never while one is

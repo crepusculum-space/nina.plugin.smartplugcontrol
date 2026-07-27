@@ -13,7 +13,7 @@ using System.Runtime.InteropServices;
 // [MANDATORY] The name of your plugin
 [assembly: AssemblyTitle("Smart Plug Control")]
 // [MANDATORY] A short description of your plugin
-[assembly: AssemblyDescription("Control smart Wi-Fi power strips (Kasa/Tapo) individually from NINA sequences")]
+[assembly: AssemblyDescription("Control smart Wi-Fi power strips (Kasa) individually from NINA sequences")]
 
 // The following attributes are not required for the plugin per se, but are required by the official manifest meta data
 
@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("Homepage", "https://crepusculum.space")]
 
 //[Optional] Common tags that quickly describe your plugin
-[assembly: AssemblyMetadata("Tags", "Kasa,Tapo,Smart Plug,Smart Power Strip,TP-Link,Remote Observatory,Power Management,Automation")]
+[assembly: AssemblyMetadata("Tags", "Kasa,Smart Plug,Smart Power Strip,TP-Link,Remote Observatory,Power Management,Automation")]
 
 //[Optional] A link that will show a log of all changes in between your plugin's versions
 [assembly: AssemblyMetadata("ChangelogURL", "https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/blob/main/CHANGELOG.md")]
@@ -57,7 +57,7 @@ Built for multi-tenant commercial remote observatories: all control goes exclusi
 
 Includes a dockable equipment page in the Imaging tab, 8 sequencer instructions (turn plugs/LEDs on/off, individually or all at once, with an optional delay), 4 loop conditions (plug on/off, total consumption above/below a threshold), and a plug-state-changed trigger.
 
-Tapo devices are discovered alongside Kasa, but control isn't implemented yet.")]
+Tapo devices, and newer-generation Kasa devices that use the same protocol (e.g. the KP125M), are discovered for visibility but will not be controllable - their protocol has no cloud-relay path, only direct local-network access, which conflicts with this plugin's cloud-only design.")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from

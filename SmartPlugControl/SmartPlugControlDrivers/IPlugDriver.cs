@@ -4,10 +4,12 @@ using System.Threading.Tasks;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
     /// <summary>
-    /// Local-network control surface for a single controllable socket. Kasa and Tapo devices speak
-    /// completely different protocols locally, so each brand gets its own implementation behind this
-    /// common interface; cloud discovery (see SmartPlugControlCloud) only tells us which brand/model
-    /// a device is - actual on/off/LED/power control always happens over the local network.
+    /// Cloud-relayed control surface for a single controllable socket - commands always go through
+    /// TP-Link's cloud API (see KasaCloudPassthroughClient), never a direct local-network connection
+    /// to the device (see CLAUDE.md for why). Only legacy-protocol Kasa devices (KasaCloudPlugDriver)
+    /// have an implementation: Tapo and newer-generation "SMART.*"-protocol Kasa devices use a
+    /// different protocol (KLAP/securePassthrough) that has no cloud-relay path at all - only direct
+    /// local-IP access - so they will never get an implementation of this interface.
     /// </summary>
     public interface IPlugDriver : IAsyncDisposable {
         /// <summary>Stable identifier: the cloud DeviceId, suffixed with the socket index for multi-socket devices.</summary>

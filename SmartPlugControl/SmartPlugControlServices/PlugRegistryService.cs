@@ -14,10 +14,13 @@ using System.Threading.Tasks;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
     /// <summary>
-    /// Combines TP-Link cloud discovery, cloud-relayed device control (Kasa only for now - see
+    /// Combines TP-Link cloud discovery, cloud-relayed device control (legacy-protocol Kasa only - see
     /// KasaCloudPassthroughClient for why control never touches the local network), and per-profile
     /// persisted data (equipment name, protected flag) into one unified, polled view of every plug/socket.
-    /// Tapo devices are discovered and listed but have no driver yet (deferred, see plan).
+    /// Tapo and newer-generation "SMART.*"-protocol Kasa devices are discovered and listed but will
+    /// never have a driver - their protocol (KLAP/securePassthrough) has no cloud-relay path at all,
+    /// only direct local-IP access, which conflicts with this plugin's cloud-only design. Not a gap to
+    /// fill later; a deliberate, permanent exclusion (see CLAUDE.md).
     /// </summary>
     [Export(typeof(IPlugRegistryService))]
     [PartCreationPolicy(CreationPolicy.Shared)]
@@ -111,14 +114,16 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
                     // Only the legacy "IOT.*" protocol generation (older Kasa models like HS103/KP303)
                     // is implemented. Tapo devices AND newer "SMART.*"-protocol Kasa models (e.g. the
-                    // KP125M, confirmed via real DeviceType logging) share the same KLAP-based protocol,
-                    // which isn't implemented yet (see plan) - checking the DeviceType prefix directly
-                    // instead of just Brand != Kasa catches this case too, rather than attempting (and
-                    // always failing) legacy passthrough commands against a device that can't answer them.
+                    // KP125M, confirmed via real DeviceType logging) share the same KLAP-based protocol -
+                    // which has no cloud-relay path at all (every implementation talks straight to the
+                    // device's local IP), so it will never be implemented here; this isn't a temporary
+                    // gap, see CLAUDE.md. Checking the DeviceType prefix directly instead of just
+                    // Brand != Kasa catches this case too, rather than attempting (and always failing)
+                    // legacy passthrough commands against a device that can't answer them.
                     bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
                     if (!usesLegacyProtocol) {
-                        // Still list the device so persisted config isn't lost once it's supported,
-                        // but with unknown state.
+                        // Still list the device (for visibility only - it will never be controllable),
+                        // so persisted config like the equipment name isn't lost.
                         var unsupportedData = persisted.TryGetValue(device.DeviceId, out var ud) ? ud : new PlugPersistedData { PlugId = device.DeviceId };
                         newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, unsupportedData, isOn: null, power: null, supportsLed: false));
                         continue;
