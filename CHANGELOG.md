@@ -46,6 +46,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the legacy protocol older models (HS103, KP303) use - the plugin was incorrectly attempting (and
   always failing) legacy commands against them. They're now correctly treated as not-yet-supported,
   same as Tapo, instead of erroring on every refresh.
+- Newer-generation Kasa devices (same "SMART.\*" family as Tapo) showed a garbled alias like
+  `S1AxMjVNLTE=` instead of their real name - TP-Link base64-encodes it, and a third-party library
+  dependency only decoded it for device types it recognized as Tapo. Now decoded correctly for these
+  devices too.
 
 ### Known limitations
 
