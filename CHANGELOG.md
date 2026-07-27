@@ -21,8 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 8 sequencer instructions: Turn Plug On/Off (with an optional delay after turning on), Turn All
   Plugs On/Off (with the same optional delay), Turn LED On/Off, Turn All LEDs On/Off.
 - 4 sequencer Loop Conditions: Plug Is On/Off, Total Consumption Below/Above a wattage threshold.
-- 1 sequencer Trigger: Plug State Changed - notifies if a plug's on/off state changes unexpectedly
-  during a sequence (e.g. switched from the Kasa app or a physical button by someone else).
+- 2 sequencer Triggers: Plug State Changed (notifies if a plug's on/off state changes unexpectedly
+  during a sequence, e.g. switched from the Kasa app or a physical button by someone else) and
+  Consumption Threshold Changed (notifies when total consumption crosses the preventive alert
+  percentage of the configured maximum - not yet tested against real monitoring-capable hardware).
 - Settings page: TP-Link account credentials (password stored encrypted on disk, masked in the UI),
   a consumption threshold and preventive alert percentage (reserved for a future alert feature), and
   a configurable equipment-page refresh interval.
@@ -37,5 +39,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Known limitations
 
 - Tapo devices are discovered but not yet controllable - only Kasa is supported for now.
-- Consumption-based alerts aren't built yet; the threshold/percentage settings above don't do
-  anything on their own until that feature lands.
+- Consumption Threshold Changed can't be verified end-to-end yet: none of the currently-owned
+  devices support energy monitoring.
