@@ -72,6 +72,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
             try {
                 await action(pollCts.Token);
             } catch (Exception ex) {
+                Logger.Error($"Failed to {description}", ex);
                 Notification.ShowError($"Failed to {description}: {ex.Message}");
             }
         }
@@ -85,6 +86,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                     } catch (OperationCanceledException) {
                         break;
                     } catch (Exception ex) {
+                        Logger.Error("Smart Plug Control refresh failed", ex);
                         Notification.ShowError($"Smart Plug Control refresh failed: {ex.Message}");
                     }
                 }

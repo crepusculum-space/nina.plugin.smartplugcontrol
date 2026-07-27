@@ -47,6 +47,7 @@ namespace Crepusculum.NINA.SmartPlugControl {
                     AllPlugs.Add(new PlugVisibilityRowViewModel(plug, registry));
                 }
             } catch (System.Exception ex) {
+                Logger.Error("Failed to refresh plug list", ex);
                 Notification.ShowError($"Failed to refresh plug list: {ex.Message}");
             }
         }

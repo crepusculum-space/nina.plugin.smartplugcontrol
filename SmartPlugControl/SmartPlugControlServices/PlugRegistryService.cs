@@ -2,6 +2,7 @@ using Settings = Crepusculum.NINA.SmartPlugControl.Properties.Settings;
 using Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud;
 using Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers;
 using Newtonsoft.Json;
+using NINA.Core.Utility;
 using NINA.Profile;
 using NINA.Profile.Interfaces;
 using System;
@@ -119,8 +120,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                     IReadOnlyList<IPlugDriver> deviceDrivers;
                     try {
                         deviceDrivers = await KasaCloudPlugDriverFactory.CreateAsync(kasaClient, device, cloudToken, token);
-                    } catch (Exception) {
+                    } catch (Exception ex) {
                         // Device is on the account but the cloud relay call failed (offline, etc).
+                        Logger.Error($"Failed to create driver(s) for Kasa device '{device.Alias}' ({device.DeviceId})", ex);
                         var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
                         newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, data, isOn: null, power: null, supportsLed: false));
                         continue;
@@ -137,8 +139,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                             if (deviceSupportsLed) {
                                 deviceIsLedOn = await deviceDrivers[0].IsLedOnAsync(token);
                             }
-                        } catch (Exception) {
+                        } catch (Exception ex) {
                             // Leave LED state unknown for this device this cycle.
+                            Logger.Error($"Failed to read LED state for '{device.Alias}' ({device.DeviceId})", ex);
                         }
                     }
 
@@ -156,8 +159,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                                     knownPowerUnsupportedPlugIds.Add(driver.PlugId);
                                 }
                             }
-                        } catch (Exception) {
+                        } catch (Exception ex) {
                             // Device went offline between discovery and polling - leave state unknown.
+                            Logger.Error($"Failed to read on/off or power state for '{driver.Alias}' ({driver.PlugId})", ex);
                         }
 
                         newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power, deviceSupportsLed, deviceIsLedOn));

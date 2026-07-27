@@ -76,6 +76,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                 model.IsOn = !turningOff;
                 RaisePropertyChanged(nameof(IsOn));
             } catch (System.Exception ex) {
+                Logger.Error($"Failed to toggle '{Alias}'", ex);
                 Notification.ShowError($"'{Alias}': {ex.Message}");
             }
         }
@@ -87,6 +88,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                 model.IsLedOn = turningOn;
                 RaisePropertyChanged(nameof(IsLedOn));
             } catch (System.Exception ex) {
+                Logger.Error($"Failed to toggle '{Alias}' LED", ex);
                 Notification.ShowError($"'{Alias}' LED: {ex.Message}");
             }
         }
