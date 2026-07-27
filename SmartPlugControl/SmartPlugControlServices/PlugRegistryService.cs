@@ -36,6 +36,15 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private List<PlugViewModel> allPlugs = new List<PlugViewModel>();
         private List<PlugViewModel> plugs = new List<PlugViewModel>();
 
+        // Reused across refreshes instead of logging in every cycle - TP-Link's cloud API has no
+        // documented rate limit, but real-world reports (e.g. Homey's integration) show repeated
+        // re-authentication specifically is what triggers "-20004 API rate limit exceeded", not
+        // moderate polling of already-authenticated endpoints. Cleared and re-acquired only when a
+        // call using it actually fails.
+        private string cachedToken;
+        private string cachedTokenUsername;
+        private string cachedTokenPassword;
+
         // Kept across refreshes so the UI/sequencer can act on a plug (on/off/LED) without triggering
         // a full re-discovery first. Rebuilt wholesale on every RefreshAsync.
         private Dictionary<string, IPlugDriver> driversByPlugId = new Dictionary<string, IPlugDriver>();
@@ -73,10 +82,24 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
             await refreshLock.WaitAsync(token);
             try {
-                // No long-lived token cache yet - a fresh login each refresh keeps this simple until
-                // polling frequency (added in a later phase) makes that wasteful.
-                string cloudToken = await cloudClient.LoginAsync(username, password, token);
-                var cloudDevices = await cloudClient.ListDevicesAsync(cloudToken, token);
+                if (cachedToken == null || cachedTokenUsername != username || cachedTokenPassword != password) {
+                    // Credentials changed since the cached token was obtained (e.g. edited in Options) -
+                    // discard it rather than keep using a session tied to the previous account.
+                    cachedToken = await cloudClient.LoginAsync(username, password, token);
+                    cachedTokenUsername = username;
+                    cachedTokenPassword = password;
+                }
+
+                IReadOnlyList<CloudPlugDeviceInfo> cloudDevices;
+                try {
+                    cloudDevices = await cloudClient.ListDevicesAsync(cachedToken, token);
+                } catch (Exception) when (!token.IsCancellationRequested) {
+                    // Cached token stopped working (expired/invalidated) - log in exactly once more
+                    // rather than falling back to logging in on every future cycle.
+                    cachedToken = await cloudClient.LoginAsync(username, password, token);
+                    cloudDevices = await cloudClient.ListDevicesAsync(cachedToken, token);
+                }
+                string cloudToken = cachedToken;
                 var persisted = LoadPersistedData();
 
                 var newPlugs = new List<PlugViewModel>();

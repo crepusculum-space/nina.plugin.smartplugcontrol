@@ -27,6 +27,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a consumption threshold and preventive alert percentage (reserved for a future alert feature), and
   a configurable equipment-page refresh interval.
 
+### Changed
+
+- The cloud session token is now reused across refresh cycles instead of logging in fresh every
+  time - only re-acquired if a call using it actually fails. Real-world reports from other TP-Link
+  cloud integrations show excessive re-authentication (not moderate polling in general) is what
+  triggers the API's undocumented rate limit.
+
 ### Known limitations
 
 - Tapo devices are discovered but not yet controllable - only Kasa is supported for now.
