@@ -27,7 +27,7 @@
                         MinWidth="140"
                         ItemsSource="{Binding AvailablePlugs}"
                         SelectedItem="{Binding SelectedPlug}"
-                        DisplayMemberPath="Alias" />
+                        DisplayMemberPath="DisplayName" />
                 </StackPanel>
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>
@@ -43,7 +43,7 @@
                         Margin="0,0,10,0"
                         ItemsSource="{Binding AvailablePlugs}"
                         SelectedItem="{Binding SelectedPlug}"
-                        DisplayMemberPath="Alias" />
+                        DisplayMemberPath="DisplayName" />
                     <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="Wait after turning on (s)" />
                     <TextBox MinWidth="40" Text="{Binding DelayAfterSeconds, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
@@ -72,7 +72,7 @@
                         MinWidth="140"
                         ItemsSource="{Binding AvailablePlugs}"
                         SelectedItem="{Binding SelectedPlug}"
-                        DisplayMemberPath="Alias" />
+                        DisplayMemberPath="DisplayName" />
                 </StackPanel>
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>
@@ -100,7 +100,7 @@
                         MinWidth="140"
                         ItemsSource="{Binding AvailablePlugs}"
                         SelectedItem="{Binding SelectedPlug}"
-                        DisplayMemberPath="Alias" />
+                        DisplayMemberPath="DisplayName" />
                 </StackPanel>
             </nina:SequenceBlockView.SequenceItemContent>
         </nina:SequenceBlockView>

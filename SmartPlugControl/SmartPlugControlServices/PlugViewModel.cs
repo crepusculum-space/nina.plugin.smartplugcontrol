@@ -16,6 +16,11 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         public bool IsProtected { get; set; }
         public bool IsVisibleInNina { get; set; } = true;
 
+        /// <summary>Equipment name when set (e.g. "Mount"), otherwise the plug's own Kasa alias - used
+        /// anywhere a plug is picked from a list (sequencer dropdowns) so equipment is identifiable at
+        /// a glance instead of by its raw Kasa device name.</summary>
+        public string DisplayName => string.IsNullOrWhiteSpace(EquipmentName) ? Alias : EquipmentName;
+
         /// <summary>Null when the device hasn't been polled yet or the cloud relay call failed (offline, no driver, etc).</summary>
         public bool? IsOn { get; set; }
 
