@@ -122,9 +122,12 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                     // legacy passthrough commands against a device that can't answer them.
                     bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
                     if (!usesLegacyProtocol) {
-                        // Still list the device (for visibility only - it will never be controllable),
-                        // so persisted config like the equipment name isn't lost.
-                        var unsupportedData = persisted.TryGetValue(device.DeviceId, out var ud) ? ud : new PlugPersistedData { PlugId = device.DeviceId };
+                        // Hidden from the equipment page/sequencer by default (nothing there can ever
+                        // control it) - but still tracked in AllPlugs (Options page) so the user can see
+                        // it's on their account and, if they want, manually re-enable "Visible in NINA"
+                        // just to see it listed. Only defaults to hidden on first discovery; a user's
+                        // own past choice for this PlugId is always respected on later refreshes.
+                        var unsupportedData = persisted.TryGetValue(device.DeviceId, out var ud) ? ud : new PlugPersistedData { PlugId = device.DeviceId, IsVisibleInNina = false };
                         newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, unsupportedData, isOn: null, power: null, supportsLed: false));
                         continue;
                     }

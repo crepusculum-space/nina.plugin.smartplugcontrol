@@ -37,6 +37,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   time - only re-acquired if a call using it actually fails. Real-world reports from other TP-Link
   cloud integrations show excessive re-authentication (not moderate polling in general) is what
   triggers the API's undocumented rate limit.
+- Tapo devices and newer-generation Kasa devices (e.g. KP125M) are now hidden from the equipment
+  page/sequencer by default the first time they're discovered - since nothing can control them (see
+  Known limitations below), leaving them visible only cluttered the plug list. Uses the existing
+  per-plug "Visible in NINA" toggle (Options page), so a device already discovered before this
+  change keeps whatever visibility you last set for it, and you can still manually re-enable
+  visibility for one if you just want to see it listed.
 
 ### Fixed
 
@@ -54,7 +60,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Known limitations
 
 - Only older-generation Kasa devices (using the legacy protocol - e.g. HS103, KP303) are
-  controllable. Tapo devices and newer-generation Kasa devices (e.g. KP125M) share a different,
-  not-yet-implemented protocol - they're discovered and listed, but can't be turned on/off yet.
+  controllable. Tapo devices and newer-generation Kasa devices (e.g. KP125M) use a different
+  protocol (KLAP/securePassthrough) that has no cloud-relay path at all, only direct local-network
+  access - they will not be controllable under this plugin's current cloud-only design. They're
+  still discovered and listed (hidden by default, see above) so persisted settings aren't lost if
+  local-network support is added as an opt-in in a future version.
 - Consumption Threshold Changed can't be verified end-to-end yet: none of the currently-supported
   devices support energy monitoring.
