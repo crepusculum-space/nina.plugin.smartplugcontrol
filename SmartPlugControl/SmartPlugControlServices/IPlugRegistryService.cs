@@ -16,6 +16,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         void SetEquipmentName(string plugId, string equipmentName);
         void SetProtected(string plugId, bool isProtected);
 
+        /// <summary>Per-device consumption-alert configuration (see PlugPersistedData) - invariant properties of whatever's plugged in, so set once here rather than per sequence item.</summary>
+        void SetMaxAmpsAt12V(string plugId, double amps);
+        void SetPsuEfficiencyPercent(string plugId, int percent);
+
         /// <summary>Opts a plug in/out of the equipment page/sequencer (the TP-Link account may have plugs unrelated to the observatory).</summary>
         void SetVisibleInNina(string plugId, bool visible);
 

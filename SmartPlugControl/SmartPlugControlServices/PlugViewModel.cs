@@ -30,5 +30,28 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         public bool? IsLedOn { get; set; }
 
         public PlugPowerReading LastPower { get; set; }
+
+        /// <summary>
+        /// Whether this plug is capable of energy monitoring at all - distinct from LastPower being
+        /// non-null on any given refresh (which can also be null from a transient read failure on a
+        /// device that does support it). Drives whether the equipment page shows the
+        /// MaxAmpsAt12V/PsuEfficiencyPercent configuration fields at all.
+        /// </summary>
+        public bool SupportsPowerMonitoring { get; set; }
+
+        /// <summary>See PlugPersistedData - configured once on the equipment page, not per sequence item.</summary>
+        public double MaxAmpsAt12V { get; set; }
+
+        /// <summary>See PlugPersistedData.</summary>
+        public int PsuEfficiencyPercent { get; set; } = 85;
+
+        private const double DcSupplyVolts = 12.0;
+
+        /// <summary>
+        /// MaxAmpsAt12V converted to an estimated AC-side Watts figure, comparable against LastPower -
+        /// null if MaxAmpsAt12V hasn't been configured (0). See PlugPersistedData.PsuEfficiencyPercent
+        /// for why this is always an estimate.
+        /// </summary>
+        public double? MaxThresholdWatts => MaxAmpsAt12V > 0 ? (MaxAmpsAt12V * DcSupplyVolts) / (PsuEfficiencyPercent / 100.0) : (double?)null;
     }
 }

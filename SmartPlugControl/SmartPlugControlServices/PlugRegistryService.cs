@@ -14,13 +14,18 @@ using System.Threading.Tasks;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
     /// <summary>
-    /// Combines TP-Link cloud discovery, cloud-relayed device control (legacy-protocol Kasa only - see
-    /// KasaCloudPassthroughClient for why control never touches the local network), and per-profile
-    /// persisted data (equipment name, protected flag) into one unified, polled view of every plug/socket.
-    /// Tapo and newer-generation "SMART.*"-protocol Kasa devices are discovered and listed but will
-    /// never have a driver - their protocol (KLAP/securePassthrough) has no cloud-relay path at all,
-    /// only direct local-IP access, which conflicts with this plugin's cloud-only design. Not a gap to
-    /// fill later; a deliberate, permanent exclusion (see CLAUDE.md).
+    /// Combines TP-Link cloud discovery, per-protocol device control, and per-profile persisted data
+    /// (equipment name, protected flag) into one unified, polled view of every plug/socket. Discovery is
+    /// always cloud-based (the user's TP-Link account is the authoritative device list), but every
+    /// discovered device is first checked for local-network presence (see LocalPresenceResolver) -
+    /// devices not physically reachable from this PC (e.g. the same account's plugs at a different
+    /// observatory, or at home) are excluded entirely, not just hidden. Devices confirmed local are then
+    /// routed by protocol, not user choice: legacy "IOT.*" Kasa devices (no local authentication at all)
+    /// are still controlled via the cloud relay (KasaCloudPassthroughClient); "SMART.*" devices (Tapo and
+    /// newer-generation Kasa, KLAP/securePassthrough protocol) are controlled directly over the local
+    /// network (KlapPlugDriver) - safe for the multi-tenant threat model because the KLAP handshake
+    /// itself is gated on the real TP-Link account credentials stored on the device since pairing (see
+    /// CLAUDE.md "Architecture history" for the full reasoning).
     /// </summary>
     [Export(typeof(IPlugRegistryService))]
     [PartCreationPolicy(CreationPolicy.Shared)]
@@ -34,6 +39,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private readonly IProfileService profileService;
         private readonly ITpLinkCloudClient cloudClient;
         private readonly KasaCloudPassthroughClient kasaClient;
+        private readonly LocalPresenceResolver localPresenceResolver;
         private readonly SemaphoreSlim refreshLock = new SemaphoreSlim(1, 1);
 
         private IPluginOptionsAccessor pluginSettings;
@@ -59,13 +65,14 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private readonly HashSet<string> knownPowerUnsupportedPlugIds = new HashSet<string>();
 
         [ImportingConstructor]
-        public PlugRegistryService(IProfileService profileService) : this(profileService, new TpLinkCloudClient(), new KasaCloudPassthroughClient()) {
+        public PlugRegistryService(IProfileService profileService) : this(profileService, new TpLinkCloudClient(), new KasaCloudPassthroughClient(), new LocalPresenceResolver()) {
         }
 
-        internal PlugRegistryService(IProfileService profileService, ITpLinkCloudClient cloudClient, KasaCloudPassthroughClient kasaClient) {
+        internal PlugRegistryService(IProfileService profileService, ITpLinkCloudClient cloudClient, KasaCloudPassthroughClient kasaClient, LocalPresenceResolver localPresenceResolver) {
             this.profileService = profileService;
             this.cloudClient = cloudClient;
             this.kasaClient = kasaClient;
+            this.localPresenceResolver = localPresenceResolver;
             pluginSettings = new PluginOptionsAccessor(profileService, PluginGuid);
             profileService.ProfileChanged += ProfileService_ProfileChanged;
         }
@@ -106,29 +113,62 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 string cloudToken = cachedToken;
                 var persisted = LoadPersistedData();
 
+                // Ping-sweep every locally-attached subnet once per refresh so the OS ARP cache is fresh
+                // before resolving any device's MAC below (see LocalPresenceResolver).
+                await localPresenceResolver.WarmArpCacheAsync(token);
+
                 var newPlugs = new List<PlugViewModel>();
                 var newDrivers = new Dictionary<string, IPlugDriver>();
 
                 foreach (var device in cloudDevices) {
                     token.ThrowIfCancellationRequested();
+                    string deviceIp = null;
+                    bool? resolved = string.IsNullOrEmpty(device.DeviceMac) ? (bool?)null : TapoConnect.Util.TapoUtils.TryGetIpAddressByMacAddress(device.DeviceMac, out deviceIp);
 
-                    // Only the legacy "IOT.*" protocol generation (older Kasa models like HS103/KP303)
-                    // is implemented. Tapo devices AND newer "SMART.*"-protocol Kasa models (e.g. the
-                    // KP125M, confirmed via real DeviceType logging) share the same KLAP-based protocol -
-                    // which has no cloud-relay path at all (every implementation talks straight to the
-                    // device's local IP), so it will never be implemented here; this isn't a temporary
-                    // gap, see CLAUDE.md. Checking the DeviceType prefix directly instead of just
-                    // Brand != Kasa catches this case too, rather than attempting (and always failing)
-                    // legacy passthrough commands against a device that can't answer them.
+                    // The account may include plugs that aren't physically at this site at all (the same
+                    // TP-Link account used at a different observatory, or at home) - exclude those
+                    // entirely rather than just hiding them, since nothing here should ever list, let
+                    // alone control, a plug this PC can't actually reach.
+                    if (resolved != true) {
+                        continue;
+                    }
+
+                    // Legacy "IOT.*" devices (older Kasa models like HS103/KP303) have no local
+                    // authentication at all, so they're still controlled exclusively via the cloud relay
+                    // even though we've just confirmed they're on this LAN - only TP-Link's own
+                    // account-boundary check (the cloud login) can guarantee only this account's
+                    // instance controls them. "SMART.*" devices (Tapo and newer-generation Kasa, e.g. the
+                    // KP125M) use the KLAP/securePassthrough protocol, which has no cloud-relay path at
+                    // all - but its handshake is itself gated on the real account credentials stored on
+                    // the device since pairing, so local control is exactly as safe as cloud for these.
                     bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
+
                     if (!usesLegacyProtocol) {
-                        // Hidden from the equipment page/sequencer by default (nothing there can ever
-                        // control it) - but still tracked in AllPlugs (Options page) so the user can see
-                        // it's on their account and, if they want, manually re-enable "Visible in NINA"
-                        // just to see it listed. Only defaults to hidden on first discovery; a user's
-                        // own past choice for this PlugId is always respected on later refreshes.
-                        var unsupportedData = persisted.TryGetValue(device.DeviceId, out var ud) ? ud : new PlugPersistedData { PlugId = device.DeviceId, IsVisibleInNina = false };
-                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, unsupportedData, isOn: null, power: null, supportsLed: false));
+                        var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
+                        var klapDriver = new KlapPlugDriver(device.DeviceId, device.Alias, deviceIp, username, password);
+
+                        bool? isOn = null;
+                        PlugPowerReading power = null;
+                        try {
+                            isOn = await klapDriver.IsOnAsync(token);
+                            if (!knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)) {
+                                power = await klapDriver.GetPowerAsync(token);
+                                if (power == null) {
+                                    knownPowerUnsupportedPlugIds.Add(klapDriver.PlugId);
+                                }
+                            }
+                        } catch (Exception ex) {
+                            // Most likely: this device was actually paired under a different TP-Link
+                            // account than the one configured in Options (shouldn't normally happen,
+                            // since cloud discovery only returns this account's own devices - but this is
+                            // the safety net that would catch it, and it's also the graceful failure path
+                            // for a simply-offline device).
+                            Logger.Error($"Failed to log in to or read state from KLAP device '{device.Alias}' ({device.DeviceId}) at {deviceIp}", ex);
+                            continue;
+                        }
+
+                        newDrivers[klapDriver.PlugId] = klapDriver;
+                        newPlugs.Add(ToViewModel(device, klapDriver.PlugId, klapDriver.Alias, data, isOn, power, supportsLed: false, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)));
                         continue;
                     }
 
@@ -139,7 +179,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                         // Device is on the account but the cloud relay call failed (offline, etc).
                         Logger.Error($"Failed to create driver(s) for Kasa device '{device.Alias}' ({device.DeviceId})", ex);
                         var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
-                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, data, isOn: null, power: null, supportsLed: false));
+                        newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, data, isOn: null, power: null, supportsLed: false, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(device.DeviceId)));
                         continue;
                     }
 
@@ -179,7 +219,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                             Logger.Error($"Failed to read on/off or power state for '{driver.Alias}' ({driver.PlugId})", ex);
                         }
 
-                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power, deviceSupportsLed, deviceIsLedOn));
+                        newPlugs.Add(ToViewModel(device, driver.PlugId, driver.Alias, data, isOn, power, deviceSupportsLed, deviceIsLedOn, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(driver.PlugId)));
                     }
                 }
 
@@ -191,7 +231,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             }
         }
 
-        private static PlugViewModel ToViewModel(CloudPlugDeviceInfo device, string plugId, string alias, PlugPersistedData data, bool? isOn, PlugPowerReading power, bool supportsLed, bool? isLedOn = null) {
+        private static PlugViewModel ToViewModel(CloudPlugDeviceInfo device, string plugId, string alias, PlugPersistedData data, bool? isOn, PlugPowerReading power, bool supportsLed, bool? isLedOn = null, bool supportsPowerMonitoring = true) {
             return new PlugViewModel {
                 PlugId = plugId,
                 Alias = alias,
@@ -202,7 +242,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 IsOn = isOn,
                 SupportsLed = supportsLed,
                 IsLedOn = isLedOn,
-                LastPower = power
+                LastPower = power,
+                SupportsPowerMonitoring = supportsPowerMonitoring,
+                MaxAmpsAt12V = data.MaxAmpsAt12V,
+                PsuEfficiencyPercent = data.PsuEfficiencyPercent
             };
         }
 
@@ -235,6 +278,37 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             var plug = allPlugs.FirstOrDefault(p => p.PlugId == plugId);
             if (plug != null) {
                 plug.IsProtected = isProtected;
+            }
+        }
+
+        public void SetMaxAmpsAt12V(string plugId, double amps) {
+            var data = LoadPersistedData();
+            if (!data.TryGetValue(plugId, out var entry)) {
+                entry = new PlugPersistedData { PlugId = plugId };
+                data[plugId] = entry;
+            }
+            entry.MaxAmpsAt12V = amps < 0 ? 0 : amps;
+            SavePersistedData(data);
+
+            var plug = allPlugs.FirstOrDefault(p => p.PlugId == plugId);
+            if (plug != null) {
+                plug.MaxAmpsAt12V = entry.MaxAmpsAt12V;
+            }
+        }
+
+        public void SetPsuEfficiencyPercent(string plugId, int percent) {
+            var data = LoadPersistedData();
+            if (!data.TryGetValue(plugId, out var entry)) {
+                entry = new PlugPersistedData { PlugId = plugId };
+                data[plugId] = entry;
+            }
+            // 0% would divide by zero when converting to a Watts threshold.
+            entry.PsuEfficiencyPercent = percent < 1 ? 1 : percent;
+            SavePersistedData(data);
+
+            var plug = allPlugs.FirstOrDefault(p => p.PlugId == plugId);
+            if (plug != null) {
+                plug.PsuEfficiencyPercent = entry.PsuEfficiencyPercent;
             }
         }
 

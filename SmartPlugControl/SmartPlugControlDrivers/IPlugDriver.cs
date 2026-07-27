@@ -4,12 +4,13 @@ using System.Threading.Tasks;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
     /// <summary>
-    /// Cloud-relayed control surface for a single controllable socket - commands always go through
-    /// TP-Link's cloud API (see KasaCloudPassthroughClient), never a direct local-network connection
-    /// to the device (see CLAUDE.md for why). Only legacy-protocol Kasa devices (KasaCloudPlugDriver)
-    /// have an implementation: Tapo and newer-generation "SMART.*"-protocol Kasa devices use a
-    /// different protocol (KLAP/securePassthrough) that has no cloud-relay path at all - only direct
-    /// local-IP access - so they will never get an implementation of this interface.
+    /// Control surface for a single controllable socket. Two implementations, chosen by the device's
+    /// own protocol rather than user choice (see CLAUDE.md "Architecture history"): legacy-protocol Kasa
+    /// devices ("IOT.*") go through the TP-Link cloud relay (KasaCloudPlugDriver, see
+    /// KasaCloudPassthroughClient) since that protocol has no local authentication; Tapo and
+    /// newer-generation Kasa devices ("SMART.*", KLAP/securePassthrough) are controlled directly over
+    /// the local network (KlapPlugDriver), since that protocol's handshake is itself gated on the real
+    /// TP-Link account credentials stored on the device.
     /// </summary>
     public interface IPlugDriver : IAsyncDisposable {
         /// <summary>Stable identifier: the cloud DeviceId, suffixed with the socket index for multi-socket devices.</summary>
