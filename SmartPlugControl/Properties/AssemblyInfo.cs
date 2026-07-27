@@ -7,13 +7,13 @@ using System.Runtime.InteropServices;
 
 // [MANDATORY] The assembly versioning
 //Should be incremented for each new release build of a plugin
-[assembly: AssemblyVersion("0.0.0.1")]
-[assembly: AssemblyFileVersion("0.0.0.1")]
+[assembly: AssemblyVersion("0.0.0.2")]
+[assembly: AssemblyFileVersion("0.0.0.2")]
 
 // [MANDATORY] The name of your plugin
 [assembly: AssemblyTitle("Smart Plug Control")]
 // [MANDATORY] A short description of your plugin
-[assembly: AssemblyDescription("Control smart Wi-Fi power strips (Kasa) individually from NINA sequences")]
+[assembly: AssemblyDescription("Control TP-Link Kasa and Tapo smart plugs/power strips individually from NINA sequences")]
 
 // The following attributes are not required for the plugin per se, but are required by the official manifest meta data
 
@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("Homepage", "https://crepusculum.space")]
 
 //[Optional] Common tags that quickly describe your plugin
-[assembly: AssemblyMetadata("Tags", "Kasa,Smart Plug,Smart Power Strip,TP-Link,Remote Observatory,Power Management,Automation")]
+[assembly: AssemblyMetadata("Tags", "Kasa,Tapo,Smart Plug,Smart Power Strip,TP-Link,Remote Observatory,Power Management,Automation")]
 
 //[Optional] A link that will show a log of all changes in between your plugin's versions
 [assembly: AssemblyMetadata("ChangelogURL", "https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/blob/main/CHANGELOG.md")]
@@ -51,13 +51,11 @@ using System.Runtime.InteropServices;
 //[Optional] An additional url to an example example screenshot of your plugin in action
 [assembly: AssemblyMetadata("AltScreenshotURL", "")]
 //[Optional] An in-depth description of your plugin
-[assembly: AssemblyMetadata("LongDescription", @"Control TP-Link Kasa smart plugs and power strips from your NINA imaging sequences - turn equipment on/off, toggle indicator LEDs, and react to plug state from the Advanced Sequencer.
+[assembly: AssemblyMetadata("LongDescription", @"Control TP-Link Kasa and Tapo smart plugs and power strips from your NINA imaging sequences - turn equipment on/off, toggle indicator LEDs, and react to plug state from the Advanced Sequencer.
 
-Built for multi-tenant commercial remote observatories: all control goes exclusively through the TP-Link cloud API, never a direct local-network connection to your devices, so one client's NINA instance can never reach another client's equipment on a shared network.
+Built for multi-tenant commercial remote observatories: your TP-Link account is the authoritative device list, and each device is only ever shown/controlled if it's physically reachable on the same local network as this NINA instance - so one client's NINA instance can never reach another client's equipment, and a device paired to your account at a different site never shows up here. Legacy-protocol Kasa devices (e.g. HS103, KP303) are controlled through the TP-Link cloud relay, since that protocol has no local authentication; Tapo and newer-generation Kasa devices (e.g. the KP125M) are controlled directly over the local network, since their protocol's handshake is itself gated on your TP-Link account credentials.
 
-Includes a dockable equipment page in the Imaging tab, 8 sequencer instructions (turn plugs/LEDs on/off, individually or all at once, with an optional delay), 4 loop conditions (plug on/off, total consumption above/below a threshold), and a plug-state-changed trigger.
-
-Tapo devices, and newer-generation Kasa devices that use the same protocol (e.g. the KP125M), are discovered for visibility but will not be controllable - their protocol has no cloud-relay path, only direct local-network access, which conflicts with this plugin's cloud-only design.")]
+Includes a dockable equipment page in the Imaging tab, 8 sequencer instructions (turn plugs/LEDs on/off, individually or all at once, with an optional delay), 4 loop conditions (plug on/off, a specific plug's consumption above/below its own configured threshold), and 2 triggers (plug state changed, a specific plug's consumption threshold crossed).")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from
