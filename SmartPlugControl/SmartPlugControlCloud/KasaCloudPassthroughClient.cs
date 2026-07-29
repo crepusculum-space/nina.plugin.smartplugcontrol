@@ -14,11 +14,20 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
     /// observatories where the network may not be segmented per client, so control must be scoped by
     /// the TP-Link account (enforced server-side by TP-Link) rather than by network reachability.
     ///
-    /// Protocol reverse-engineered from https://github.com/piekstra/tplink-cloud-api (signing.py,
-    /// device_client.py, device_manager.py): each device's own cloud "appServerUrl" is POSTed a
-    /// V1-style {"method":"passthrough","params":{"deviceId","requestData"}} envelope, signed with
-    /// V2 HMAC-SHA1 using Kasa's app-identifying (not user-specific) AccessKey/SecretKey pair.
+    /// Protocol reverse-engineered by consulting two GPL-3.0-licensed reference implementations:
+    /// https://github.com/piekstra/tplink-cloud-api (signing.py, device_client.py,
+    /// device_manager.py) for the passthrough envelope/HMAC-SHA1 signing scheme, and
+    /// https://github.com/python-kasa/python-kasa for the correct `set_led_off` command shape
+    /// (nested under "system", not top-level - piekstra's version silently did nothing). Each
+    /// device's own cloud "appServerUrl" is POSTed a V1-style
+    /// {"method":"passthrough","params":{"deviceId","requestData"}} envelope, signed with V2
+    /// HMAC-SHA1 using Kasa's app-identifying (not user-specific) AccessKey/SecretKey pair.
     /// requestData carries the same JSON commands as the legacy local Kasa protocol.
+    ///
+    /// Because this file was written with direct reference to those two GPL-3.0 sources rather than
+    /// purely from independent protocol observation, this plugin as a whole is licensed under
+    /// GPL-3.0 (see repo root LICENSE) to stay compatible with them - see CLAUDE.md's "GPL-3.0
+    /// relicense" section for the full reasoning.
     /// </summary>
     public class KasaCloudPassthroughClient {
         // Kasa app-identifying keys (not user secrets), extracted from the Kasa Android APK by the

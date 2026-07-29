@@ -15,17 +15,28 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
-    <!--  ExcludeAssets="runtime": compile against NINA's own assemblies (and everything they pull in,
-          e.g. Newtonsoft.Json, Accord, EntityFramework...) without copying local duplicates of them -
-          the host process already has them loaded. Only genuinely plugin-specific dependencies below
-          (TapoConnect and its own transitive deps, ProtectedData) need to be physically copied.  -->
+    <!--  ExcludeAssets="runtime;native": compile against NINA's own assemblies (and everything they pull
+          in, e.g. Newtonsoft.Json, Accord, EntityFramework, System.Data.SQLite/SqlClient,
+          System.IO.Ports...) without copying local duplicates of them - the host process already has
+          them loaded. "runtime" alone only excludes NINA.Plugin's own managed assembly; "native" is a
+          separate NuGet asset category and has to be excluded explicitly too, or CopyLocalLockFileAssemblies
+          still copies native interop binaries (SQLite.Interop.dll, sni.dll, libSystem.IO.Ports.Native.*)
+          from packages further down NINA.Core's own dependency graph - none of which this plugin uses
+          at all. Only genuinely plugin-specific dependencies below (TapoConnect and its own transitive
+          deps, ProtectedData) need to be physically copied.  -->
     <!--  Matches Properties/AssemblyInfo.cs's MinimumApplicationVersion ("3.0.0.2017") - keep these
           two in sync (see CLAUDE.md). Was bumped to 3.2.0.9001 for a since-removed feature that
           needed ISequenceMediator.SequenceStarting/SequenceFinished; reverted once nothing in the
           codebase needed a 3.2-only API anymore.  -->
-    <PackageReference Include="NINA.Plugin" Version="3.0.0.2017-beta" ExcludeAssets="runtime" />
+    <PackageReference Include="NINA.Plugin" Version="3.0.0.2017-beta" ExcludeAssets="runtime;native" />
     <PackageReference Include="TapoConnect" Version="3.2.4" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--  MIT (TapoConnect, BouncyCastle.Crypto) requires the license text/copyright notice to be
+          included with copies of the software - copying this into the build output means it travels
+          with every deployed/zipped copy of the plugin, not just the GitHub repo source.  -->
+    <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <PropertyGroup />
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

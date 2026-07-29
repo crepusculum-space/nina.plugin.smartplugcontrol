@@ -162,4 +162,17 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-[MIT](LICENSE)
+[GPL-3.0](LICENSE)
+
+Part of `SmartPlugControlCloud/KasaCloudPassthroughClient.cs` (the legacy-Kasa cloud passthrough
+protocol) was reverse-engineered by consulting two GPL-3.0-licensed reference implementations
+([piekstra/tplink-cloud-api](https://github.com/piekstra/tplink-cloud-api) and
+[python-kasa](https://github.com/python-kasa/python-kasa)) - this plugin is licensed as GPL-3.0 as a
+whole to stay compatible with that.
+
+## Third-party licenses
+
+This plugin bundles [TapoConnect](https://github.com/cwakefie27/TapoConnect) and
+[BouncyCastle.Crypto](https://www.bouncycastle.org/csharp/) (both MIT-licensed) in its distributed
+build - MIT-licensed code is compatible with inclusion in a GPL-3.0 work. See
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for their full license texts and copyright notices.

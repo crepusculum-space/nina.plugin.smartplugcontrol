@@ -4,6 +4,27 @@ All notable changes to Smart Plug Control are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.0.3] - 2026-07-27
+
+### Changed
+
+- **Relicensed from MIT to GPL-3.0.** Part of `KasaCloudPassthroughClient.cs` (the legacy Kasa cloud
+  passthrough protocol) was written with direct reference to two GPL-3.0-licensed projects
+  (piekstra/tplink-cloud-api, python-kasa) to understand the protocol - to stay unambiguously
+  compatible with their license, this plugin is now GPL-3.0 as a whole rather than MIT. See
+  `THIRD-PARTY-NOTICES.md` for full credits.
+- Added `THIRD-PARTY-NOTICES.md`, now bundled in every release build, crediting TapoConnect and
+  BouncyCastle.Crypto (both MIT, compatible with inclusion in this GPL-3.0 project) and the two
+  GPL-3.0 reference implementations above.
+
+### Fixed
+
+- Removed unused native runtime files (`SQLite.Interop.dll`, `sni.dll`,
+  `libSystem.IO.Ports.Native.*`) that were being bundled by mistake - they came from NINA's own
+  dependency tree (EntityFramework/SQLite/SqlClient/IO.Ports, used internally by NINA.Core, not by
+  this plugin), leaking through despite excluding NINA.Plugin's own assembly. The distributed zip now
+  contains only this plugin's own DLL plus its two real dependencies (TapoConnect, BouncyCastle).
+
 ## [0.0.0.2] - 2026-07-27
 
 ### Added

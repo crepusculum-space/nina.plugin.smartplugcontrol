@@ -7,8 +7,8 @@ using System.Runtime.InteropServices;
 
 // [MANDATORY] The assembly versioning
 //Should be incremented for each new release build of a plugin
-[assembly: AssemblyVersion("0.0.0.2")]
-[assembly: AssemblyFileVersion("0.0.0.2")]
+[assembly: AssemblyVersion("0.0.0.3")]
+[assembly: AssemblyFileVersion("0.0.0.3")]
 
 // [MANDATORY] The name of your plugin
 [assembly: AssemblyTitle("Smart Plug Control")]
@@ -27,9 +27,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.2017")]
 
 // The license your plugin code is using
-[assembly: AssemblyMetadata("License", "MIT")]
+[assembly: AssemblyMetadata("License", "GPL-3.0")]
 // The url to the license
-[assembly: AssemblyMetadata("LicenseURL", "https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/blob/main/LICENSE")]
+[assembly: AssemblyMetadata("LicenseURL", "https://www.gnu.org/licenses/gpl-3.0.en.html")]
 // The repository where your pluggin is hosted
 [assembly: AssemblyMetadata("Repository", "https://github.com/crepusculum-space/nina.plugin.smartplugcontrol")]
 
