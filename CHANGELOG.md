@@ -4,6 +4,24 @@ All notable changes to Smart Plug Control are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.0.4] - 2026-08-29
+
+### Fixed
+
+- **Sequencer triggers/conditions could silently act on stale data when the equipment page was
+  hidden.** The equipment page's poll loop only refreshed `IPlugRegistryService` while its own panel
+  was visible - but sequencer items read live state from that same registry regardless of whether
+  the equipment page happens to be open. Refreshing is now unconditional. Found via code review
+  (thanks isbeorn).
+- Clarified the license identifier from ambiguous `GPL-3.0` to `GPL-3.0-only` (this project's
+  `LICENSE` doesn't include the "or later version" clause).
+- The `LICENSE` file is now bundled in the release zip alongside `THIRD-PARTY-NOTICES.md` - required
+  for GPL-3.0 compliance, previously missing from the distributed build.
+
+### Added
+
+- A test project (`SmartPlugControlTests`) with regression coverage for the stale-data fix above.
+
 ## [0.0.0.3] - 2026-07-27
 
 ### Changed

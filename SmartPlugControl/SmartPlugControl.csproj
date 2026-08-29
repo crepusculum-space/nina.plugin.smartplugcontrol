@@ -33,9 +33,11 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <!--  MIT (TapoConnect, BouncyCastle.Crypto) requires the license text/copyright notice to be
-          included with copies of the software - copying this into the build output means it travels
-          with every deployed/zipped copy of the plugin, not just the GitHub repo source.  -->
+    <!--  GPL-3.0-only requires the license text to be included with copies of the program (see
+          LICENSE section 4/5) - copying it into the build output means it travels with every
+          deployed/zipped copy of the plugin, not just the GitHub repo source. Same reasoning for
+          THIRD-PARTY-NOTICES.md (MIT attribution for TapoConnect/BouncyCastle.Crypto).  -->
+    <None Include="../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <PropertyGroup />

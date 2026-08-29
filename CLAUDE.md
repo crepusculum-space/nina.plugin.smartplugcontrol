@@ -121,6 +121,14 @@ excluded, not crashed" scenario that validates the core security argument for th
   decision** (the user considered the Equipment tab / Installed Plugins settings, chose Imaging
   because the toolbar icon there lets it be shown/hidden without leaving the Imaging view) - don't
   relocate without being asked again.
+- `PlugControlDockableVM`'s poll loop refreshes `IPlugRegistryService` unconditionally now, not just
+  while the dock panel is visible (found in PR review - hiding the equipment page used to silently
+  freeze the data sequencer triggers/conditions read). Covered by a new `SmartPlugControlTests`
+  project (xUnit, hand-written fakes for `IPlugRegistryService`/`IProfileService` - no Moq/mocking
+  library added, to keep the test-only dependency surface minimal) - run with
+  `dotnet test SmartPlugControlTests/SmartPlugControlTests.csproj`. This is the only project with
+  automated tests; everything else in this plugin is still verified manually inside real NINA (see
+  the gotcha below about why `dotnet build` alone can't prove UI-level correctness).
 - 8 sequencer Instructions (Turn On/Off Plug with post-on delay, Turn On/Off All Plugs, Turn On/Off
   LED, Turn All LEDs On/Off) - "Turn Off Plug" hard-blocks via `IValidatable` on a protected plug.
 - 4 sequencer Conditions (Plug Is On/Off, Total Consumption Below/Above) - these show up under
@@ -415,6 +423,22 @@ distributes a modified version of this plugin (or incorporates it into another p
 distribute that too under GPL-3.0 and provide corresponding source - they can no longer fold it into
 a closed-source product the way MIT would have allowed. For an end user who just installs the plugin
 in NINA, nothing changes.
+
+**PR review feedback from isbeorn (2026-08-10) - addressed in v0.0.0.4**: submitting the manifest PR
+surfaced two more concrete gaps, worth remembering:
+- **`GPL-3.0` alone is an ambiguous SPDX identifier** - GPL-3.0-only and GPL-3.0-or-later are
+  different licenses (whether downstream users may relicense under a hypothetical future GPL
+  version). This project's `LICENSE` file's applied notice (the "How These Terms Apply to This
+  Program" section at the bottom, which replaced the FSF's unfilled boilerplate placeholder) commits
+  to `GPL-3.0-only` specifically - no "or later version" clause. Kept consistent across
+  `AssemblyInfo.cs`, `README.md`, and the NINA manifest. `THIRD-PARTY-NOTICES.md` also now notes that
+  python-kasa's own `LICENSE` explicitly says "or later" (so it's GPL-3.0-or-later) while piekstra's
+  `LICENSE` leaves the same clause unfilled (genuinely ambiguous on their end too).
+- **The `LICENSE` file itself wasn't being bundled in the release zip** - only
+  `THIRD-PARTY-NOTICES.md` was wired to copy to the build output. Fixed by adding the same
+  `CopyToOutputDirectory` `None` item for `LICENSE` in `SmartPlugControl.csproj`. This one actually
+  matters for GPL-3.0 compliance (section 4/5 require the license text accompany conveyed copies),
+  unlike THIRD-PARTY-NOTICES.md which is just good practice for the MIT deps.
 
 ## Gotchas already paid for — don't re-learn these
 

@@ -2,13 +2,17 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+// Lets SmartPlugControlTests exercise internal members (e.g. PlugControlDockableVM.RefreshTickAsync)
+// without making them part of the plugin's public API surface.
+[assembly: InternalsVisibleTo("SmartPlugControlTests")]
+
 // [MANDATORY] The following GUID is used as a unique identifier of the plugin. Generate a fresh one for your plugin!
 [assembly: Guid("22f9cea5-3456-4594-856e-73840c20c30a")]
 
 // [MANDATORY] The assembly versioning
 //Should be incremented for each new release build of a plugin
-[assembly: AssemblyVersion("0.0.0.3")]
-[assembly: AssemblyFileVersion("0.0.0.3")]
+[assembly: AssemblyVersion("0.0.0.4")]
+[assembly: AssemblyFileVersion("0.0.0.4")]
 
 // [MANDATORY] The name of your plugin
 [assembly: AssemblyTitle("Smart Plug Control")]
@@ -27,7 +31,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("MinimumApplicationVersion", "3.0.0.2017")]
 
 // The license your plugin code is using
-[assembly: AssemblyMetadata("License", "GPL-3.0")]
+[assembly: AssemblyMetadata("License", "GPL-3.0-only")]
 // The url to the license
 [assembly: AssemblyMetadata("LicenseURL", "https://www.gnu.org/licenses/gpl-3.0.en.html")]
 // The repository where your pluggin is hosted

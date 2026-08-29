@@ -162,13 +162,13 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-[GPL-3.0](LICENSE)
+[GPL-3.0-only](LICENSE)
 
 Part of `SmartPlugControlCloud/KasaCloudPassthroughClient.cs` (the legacy-Kasa cloud passthrough
 protocol) was reverse-engineered by consulting two GPL-3.0-licensed reference implementations
 ([piekstra/tplink-cloud-api](https://github.com/piekstra/tplink-cloud-api) and
-[python-kasa](https://github.com/python-kasa/python-kasa)) - this plugin is licensed as GPL-3.0 as a
-whole to stay compatible with that.
+[python-kasa](https://github.com/python-kasa/python-kasa)) - this plugin is licensed as GPL-3.0-only
+as a whole to stay compatible with that.
 
 ## Third-party licenses
 
