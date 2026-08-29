@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <IsPackable>false</IsPackable>
+    <!--  Not deployed to NINA's plugin folder and not part of the distributed release zip - test-only
+          project, so its own dependencies (xunit) never need a THIRD-PARTY-NOTICES entry.  -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!--  Unlike the plugin project, NINA.Plugin's assets are NOT excluded here - a test process runs
+          standalone (no NINA host to provide these at runtime), so the real assemblies need to be
+          present in this project's own output for `dotnet test` to actually execute.  -->
+    <PackageReference Include="NINA.Plugin" Version="3.0.0.2017-beta" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SmartPlugControl\SmartPlugControl.csproj" />
+  </ItemGroup>
+</Project>

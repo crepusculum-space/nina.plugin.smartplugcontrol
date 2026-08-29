@@ -19,7 +19,9 @@ using System.Windows.Media;
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
     /// <summary>
     /// The plugin's equipment page: a live table of every discovered plug/socket plus global actions.
-    /// Polls IPlugRegistryService in the background, only while the panel is visible.
+    /// Polls IPlugRegistryService in the background unconditionally - not gated on whether the panel
+    /// is currently visible, since sequencer triggers/conditions depend on the same registry staying
+    /// fresh even while the equipment page is hidden.
     /// </summary>
     [Export(typeof(IDockableVM))]
     public class PlugControlDockableVM : DockableVM {
@@ -79,16 +81,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
 
         private async Task PollLoopAsync(CancellationToken token) {
             while (!token.IsCancellationRequested) {
-                if (IsVisible) {
-                    try {
-                        await registry.RefreshAsync(token);
-                        SyncPlugsToUi();
-                    } catch (OperationCanceledException) {
-                        break;
-                    } catch (Exception ex) {
-                        Logger.Error("Smart Plug Control refresh failed", ex);
-                        Notification.ShowError($"Smart Plug Control refresh failed: {ex.Message}");
-                    }
+                try {
+                    await RefreshTickAsync(token);
+                } catch (OperationCanceledException) {
+                    break;
                 }
 
                 try {
@@ -99,6 +95,29 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                 } catch (OperationCanceledException) {
                     break;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the registry (and, if the dock happens to be visible, syncs the UI grid)
+        /// exactly once. Deliberately NOT gated on <see cref="DockableVM.IsVisible"/> - sequencer
+        /// triggers/conditions (PlugStateChangedTrigger, ConsumptionThresholdTrigger, etc.) read live
+        /// state from the same IPlugRegistryService this polls, regardless of whether the equipment
+        /// page happens to be open. Gating the refresh on dock visibility previously meant hiding the
+        /// panel silently froze that data - a sequencer trigger running against a hidden dock would
+        /// keep evaluating stale cached state instead of detecting real changes. Internal (not
+        /// private) so SmartPlugControlTests can exercise a single tick without waiting on the full
+        /// poll loop's delay.
+        /// </summary>
+        internal async Task RefreshTickAsync(CancellationToken token) {
+            try {
+                await registry.RefreshAsync(token);
+                SyncPlugsToUi();
+            } catch (OperationCanceledException) {
+                throw;
+            } catch (Exception ex) {
+                Logger.Error("Smart Plug Control refresh failed", ex);
+                Notification.ShowError($"Smart Plug Control refresh failed: {ex.Message}");
             }
         }
 
