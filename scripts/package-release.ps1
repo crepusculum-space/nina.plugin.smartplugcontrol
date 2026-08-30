@@ -62,9 +62,25 @@ Write-Host ""
 Write-Host "Package created: $zipPath"
 Write-Host "SHA256: $hash"
 Write-Host ""
-Write-Host "Zip contents (must be flat, no wrapping folder):"
-Get-Content -Path $zipPath -TotalCount 0 | Out-Null
+Write-Host "Zip contents:"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
 $archive.Entries | ForEach-Object { Write-Host "  $($_.FullName)" }
+
+# NINA extracts an ARCHIVE installer directly into "<PluginsDir>\<Plugin Display Name>\" with
+# no extra subfolder of its own - a wrapping folder here silently breaks installs from the
+# plugin repository (shipped undetected in v0.0.0.1-v0.0.0.4, see CHANGELOG.md v0.0.0.5). Fail
+# loudly instead of shipping that again.
+$topLevelDirs = $archive.Entries |
+    Where-Object { $_.FullName -match '/' } |
+    ForEach-Object { $_.FullName.Split('/')[0] } |
+    Select-Object -Unique
 $archive.Dispose()
+if ($topLevelDirs.Count -gt 0) {
+    throw "Zip structure INVALID: found wrapping folder(s) [$($topLevelDirs -join ', ')] - files must sit at the zip root, not nested. Fix before releasing."
+}
+Write-Host "Zip structure OK: files are at the root, no wrapping folder."
+Write-Host ""
+Write-Host "Next: .\scripts\serve-test-repository.ps1 -Version $Version, then in NINA add"
+Write-Host "http://localhost:8420 as a plugin repository (Options > Plugins) to verify the"
+Write-Host "install works end-to-end before submitting/updating the manifest PR."
