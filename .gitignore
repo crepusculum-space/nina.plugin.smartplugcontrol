@@ -99,3 +99,6 @@ orleans.codegen.cs
 /NINA/Resources/StaticResources/ArrowLeft.xaml
 Accord.dll.config
 *.zip
+
+# Release packaging output (scripts/package-release.ps1)
+/artifacts/

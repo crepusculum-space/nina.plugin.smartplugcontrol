@@ -4,6 +4,22 @@ All notable changes to Smart Plug Control are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.0.5] - 2026-08-30
+
+### Fixed
+
+- **The release zip was packaged wrong and broke installs from NINA's built-in plugin repository.**
+  Every prior release zip wrapped the plugin's files in a top-level
+  `Crepusculum.NINA.SmartPlugControl\` folder (an artifact of zipping the raw build output
+  directory). NINA's plugin manager extracts the installer archive directly into
+  `<PluginsDir>\Smart Plug Control\` - it does not create an extra subfolder itself - so installing
+  from the repository actually produced
+  `...\Plugins\3.0.0\Smart Plug Control\Crepusculum.NINA.SmartPlugControl\*.dll`, one level too
+  deep for NINA to find the DLL. A manually-copied local dev build never hit this (the dev
+  `PostBuild` deploy step already targets the right depth), which is why it went unnoticed until a
+  real install-from-repository was tested. Fixed by adding `scripts/package-release.ps1`, which
+  zips the build output's *contents* rather than the folder itself.
+
 ## [0.0.0.4] - 2026-08-29
 
 ### Fixed
