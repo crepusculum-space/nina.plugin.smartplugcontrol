@@ -35,9 +35,13 @@ plugin day to day.
 
 ## Installation
 
-Smart Plug Control isn't in NINA's official plugin repository yet, so for now it's a manual install -
-NINA only auto-extracts a plugin zip when it downloads it itself from the official repository; a zip
-placed here by hand has to be extracted by you first, NINA will not do it for you.
+Smart Plug Control is listed in NINA's official plugin repository - the easiest way to install it:
+
+1. In NINA, go to **Options → Plugins**, find **Smart Plug Control** in the list, and click install.
+   NINA downloads and extracts it for you.
+2. Restart NINA if prompted.
+
+### Manual install (a specific version, or a build from source)
 
 1. Download and **extract** the zip from the
    [Releases](https://github.com/crepusculum-space/nina.plugin.smartplugcontrol/releases) page (or
