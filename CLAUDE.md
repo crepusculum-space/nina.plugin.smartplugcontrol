@@ -22,9 +22,10 @@ device on the network, regardless of which TP-Link account owns it. Routing cont
 TP-Link's cloud meant TP-Link enforced the account boundary server-side, independent of network
 topology. Shipped, tested on real Kasa hardware (HS103, KP303 - the legacy `IOT.*` protocol),
 released on GitHub and submitted to NINA's official manifest repo
-(isbeorn/nina.plugin.manifests#589).
+(isbeorn/nina.plugin.manifests#589 - later superseded, see below).
 
-**v3 (pivot 2, in progress): hybrid - cloud discovery, protocol-routed control.** Triggered by real
+**v3 (pivot 2, shipped, merged into NINA's official plugin repository 2026-08-29): hybrid - cloud
+discovery, protocol-routed control.** Triggered by real
 hardware testing revealing Tapo and newer-generation Kasa (the `SMART.*`/KLAP protocol family, e.g.
 the KP125M) have **no cloud-relay path at all** - confirmed by reading two independent community
 protocol implementations (C# `TapoConnect`, and the more mature/actively-maintained Rust
@@ -111,9 +112,9 @@ excluded, not crashed" scenario that validates the core security argument for th
 
 **Done and verified working inside a real running NINA instance** (not just compiled):
 - Cloud discovery, on/off, LED control for Kasa (HS103 x2, KP303 power strip - real hardware).
-- KLAP local-network control for Tapo/newer-Kasa (`KlapPlugDriver`) - **code complete, compiles, not
-  yet verified against real hardware** (Tapo P115, 2x Kasa KP125M on order/arrived - see "Current
-  architecture" above for what to test).
+- KLAP local-network control for Tapo/newer-Kasa (`KlapPlugDriver`) - verified against real hardware
+  (Tapo P115, 2x Kasa KP125M) - see "Verified against real hardware" note under "Current
+  architecture" above.
 - Per-plug "visible in NINA" toggle (Options page) - the TP-Link account may have devices unrelated
   to the observatory (a home TV, a printer); hidden plugs are excluded everywhere, including bulk
   actions (`TurnOnAllAsync`/`TurnOffAllAsync`/`SetAllLedsAsync`).
@@ -439,8 +440,43 @@ surfaced two more concrete gaps, worth remembering:
   `CopyToOutputDirectory` `None` item for `LICENSE` in `SmartPlugControl.csproj`. This one actually
   matters for GPL-3.0 compliance (section 4/5 require the license text accompany conveyed copies),
   unlike THIRD-PARTY-NOTICES.md which is just good practice for the MIT deps.
+- A second reviewer (`daleghent`, a NINA contributor, not the maintainer) argued the AI-authored code
+  was likely "cribbed" from the ecosystem's mostly-MIT plugins in general (an argument about LLM
+  training-data provenance broadly, not this specific file) - responded by pointing out the actual
+  official plugin scaffolding template (`isbeorn/nina.plugin.template`) that this project's structure
+  visibly follows is **Unlicense** (public domain), not MIT, and that a diffuse "trained on mostly-MIT
+  code in general" claim isn't the same kind of traceable, specific-source claim as the piekstra/
+  python-kasa situation that actually drove the GPL-3.0 relicense. isbeorn (the actual maintainer) did
+  not push back on GPL-3.0 itself - his review comment instead argued the opposite (that consulting
+  GPL code to learn an undocumented protocol doesn't automatically make the result GPL, since request
+  formats/field names/endpoints are protocol behavior, not copyrightable expression). Kept GPL-3.0
+  anyway as the conservative choice already made - never had to resolve whose interpretation was
+  "more correct" to get the PR merged.
+
+**PR merged 2026-08-29 (isbeorn/nina.plugin.manifests#589).** Confirmed working: a fresh
+install-from-repository inside real NINA succeeds and the plugin loads correctly. Fixing the v0.0.0.5
+zip-packaging bug (see Changelog/gotchas below) was the last blocker - once that shipped, the PR was
+merged without further back-and-forth. The plugin is now publicly listed and installable by anyone
+through NINA's built-in plugin manager, not just via manual zip installation from GitHub Releases.
 
 ## Gotchas already paid for — don't re-learn these
+
+- **A release zip that installs fine from a manually-copied dev build can still be broken for a real
+  install-from-NINA's-repository - these are not the same test.** Every release zip through v0.0.0.4
+  wrapped the plugin's files in a top-level `Crepusculum.NINA.SmartPlugControl\` folder (zipping the
+  build output *directory* rather than its *contents*). NINA's plugin manager extracts an installer
+  archive straight into `<PluginsDir>\Smart Plug Control\` with no extra subfolder of its own - so
+  every prior release actually produced `...\Smart Plug Control\Crepusculum.NINA.SmartPlugControl\*.dll`,
+  one directory level too deep for NINA to find the DLL at all. This went unnoticed for four releases
+  because the dev-loop `PostBuild` xcopy step (used for every manual test all along) already deploys
+  at the correct depth - it was never exercised through the actual repository-install code path until
+  someone finally tried it for real after the manifest PR was merged. Fixed in v0.0.0.5 by adding
+  `scripts/package-release.ps1`, which zips the build output's contents, not the folder itself - and
+  by building a local test harness (`scripts/serve-test-repository.ps1`, simulates NINA's plugin
+  repository locally) specifically so this class of bug can be caught *before* a manifest PR is
+  submitted, not after. **Use that harness before every future manifest PR/version bump - a clean
+  `dotnet build` and a manually-copied dev deploy prove nothing about whether the packaged release zip
+  actually installs correctly through NINA's real plugin manager.**
 
 - **`hostCount` in `LocalPresenceResolver.GetLocalIPv4Subnets` includes the network and broadcast
   addresses, so comparing it directly against `MaxHostsPerSubnet` is an off-by-two bug that silently
