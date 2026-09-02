@@ -4,6 +4,18 @@ All notable changes to Smart Plug Control are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.0.6] - 2026-08-30
+
+### Fixed
+
+- **Entering TP-Link credentials could silently do nothing** - reported by a user: no error, nothing
+  in NINA's log, no plugs ever appeared, even with an intentionally wrong password. Root cause: the
+  password field's setter runs inside a WPF binding that silently swallows any exception it throws;
+  if Windows' credential encryption (DPAPI) fails on a given system (e.g. a temporary/roaming Windows
+  profile, or a missing crypto API on that system's .NET Windows Desktop Runtime), the password was
+  never actually saved and nothing ever indicated why. Now checked proactively before every save
+  attempt, with a plain-language error message and a log entry instead of silent failure.
+
 ## [0.0.0.5] - 2026-08-30
 
 ### Fixed
