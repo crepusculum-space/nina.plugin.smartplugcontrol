@@ -88,6 +88,12 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             string username = Settings.Default.TpLinkUsername;
             string password = SecureCredentialStore.Unprotect(Settings.Default.TpLinkPasswordProtected);
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)) {
+                // Debug, not Error - this is the expected, silent, every-cycle state for a plugin
+                // that's simply never been configured yet. Logged at all so a support session can
+                // still tell "never configured" apart from "configured but silently failed to save"
+                // (e.g. the DPAPI failure TpLinkPassword's setter now guards against) by bumping log
+                // verbosity and checking whether refreshes were even being attempted.
+                Logger.Debug($"SmartPlugControl: refresh skipped - {(string.IsNullOrWhiteSpace(username) ? "username" : "password")} not configured.");
                 return;
             }
 

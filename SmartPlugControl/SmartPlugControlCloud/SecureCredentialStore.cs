@@ -8,6 +8,25 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
     /// so it is never persisted in plain text in the plugin's settings file.
     /// </summary>
     public static class SecureCredentialStore {
+        private static bool? isAvailable;
+
+        /// <summary>
+        /// Whether Windows DPAPI is actually usable on this machine/user profile, checked once via a
+        /// real encrypt/decrypt round-trip (not just whether the type/assembly loads) - DPAPI itself
+        /// can fail for reasons beyond a missing assembly, e.g. a temporary or roaming Windows profile
+        /// without usable key material. Cached after the first call since this can't change mid-session.
+        /// </summary>
+        public static bool IsAvailable() {
+            if (isAvailable == null) {
+                try {
+                    isAvailable = Unprotect(Protect("smart-plug-control-dpapi-check")) == "smart-plug-control-dpapi-check";
+                } catch (Exception) {
+                    isAvailable = false;
+                }
+            }
+            return isAvailable.Value;
+        }
+
         public static string Protect(string plainText) {
             if (string.IsNullOrEmpty(plainText)) {
                 return string.Empty;

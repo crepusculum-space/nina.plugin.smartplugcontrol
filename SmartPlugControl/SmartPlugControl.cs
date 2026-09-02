@@ -52,9 +52,6 @@ namespace Crepusculum.NINA.SmartPlugControl {
             }
         }
 
-        // Minimal stand-in for the Phase 7 settings page (thresholds, refresh interval, and a proper
-        // masked password control) - just enough to unblock testing the equipment page. The password
-        // field is a plain TextBox for now.
         public string TpLinkUsername {
             get => Settings.Default.TpLinkUsername;
             set {
@@ -67,9 +64,27 @@ namespace Crepusculum.NINA.SmartPlugControl {
         public string TpLinkPassword {
             get => SecureCredentialStore.Unprotect(Settings.Default.TpLinkPasswordProtected);
             set {
-                Settings.Default.TpLinkPasswordProtected = SecureCredentialStore.Protect(value ?? string.Empty);
-                CoreUtil.SaveSettings(Settings.Default);
-                RaisePropertyChanged();
+                // Checked proactively (not just wrapped in try/catch) because WPF silently swallows
+                // exceptions thrown from a TwoWay-bound property setter by default (no
+                // ValidatesOnExceptions on this binding) - without this check, a DPAPI failure here
+                // (e.g. a temporary/roaming Windows profile with no usable key material) would leave
+                // the password permanently unsaved with zero indication anything went wrong: no
+                // exception surfaces, nothing reaches the log, and every later plug refresh just
+                // silently no-ops since the credentials look "not yet configured" instead of "failed
+                // to save". See CLAUDE.md for the real report this was written for.
+                if (!SecureCredentialStore.IsAvailable()) {
+                    Logger.Error("Can't save TP-Link password: Windows DPAPI (credential encryption) failed a round-trip test on this system.");
+                    Notification.ShowError("Can't save the TP-Link password: Windows' credential encryption isn't working on this system. This usually means your Windows user profile is temporary, roaming, or otherwise unable to store encryption keys. Smart Plug Control can't function without it - see NINA's log for details, or contact the plugin author.");
+                    return;
+                }
+                try {
+                    Settings.Default.TpLinkPasswordProtected = SecureCredentialStore.Protect(value ?? string.Empty);
+                    CoreUtil.SaveSettings(Settings.Default);
+                    RaisePropertyChanged();
+                } catch (System.Exception ex) {
+                    Logger.Error("Failed to encrypt/save the TP-Link password", ex);
+                    Notification.ShowError($"Failed to save the TP-Link password: {ex.Message}");
+                }
             }
         }
 
