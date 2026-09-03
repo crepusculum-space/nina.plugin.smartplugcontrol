@@ -461,6 +461,37 @@ through NINA's built-in plugin manager, not just via manual zip installation fro
 
 ## Gotchas already paid for — don't re-learn these
 
+- **A `DependencyProperty` registered with a default value that a real bound value can legitimately
+  equal on the very first bind can silently never fire its PropertyChangedCallback at all - not just
+  "less often", literally never, for exactly the users who need it most.** `PasswordBoxAssistant`'s
+  `BoundPassword` attached property was registered with `PropertyMetadata(string.Empty, ...)`. For
+  every first-time setup (no password saved yet), `TpLinkPassword`'s getter returns `""` - identical
+  to the registered default - on the very first bind. WPF can skip invoking the callback entirely in
+  that case, so `PasswordChanged` was never subscribed, and typing into the box did nothing, forever,
+  with zero error anywhere (see the DPAPI gotcha below for why this was first misdiagnosed as a
+  encryption failure instead). Fixed by registering the default as `null` instead - a real password is
+  never null, so the very first bind is always seen as a genuine change. General lesson: an attached
+  property's registered default should be a value no legitimate bound value can ever equal, not
+  whatever the "empty" case happens to look like.
+- **A background poll loop that retries a failing login on every cycle with no backoff can trip a
+  third-party service's own rate limiting and lock a real user's account** - not hypothetical, this
+  actually happened. Before this was fixed, `PlugRegistryService.RefreshAsync`'s equipment-page poll
+  loop (`PlugControlDockableVM`, default every 10s) retried `cloudClient.LoginAsync` every single
+  cycle whenever the cached token was null (which it stays, forever, if login keeps failing) - so a
+  wrong-but-non-empty password (as opposed to a simply-unconfigured one, already handled) meant
+  hammering TP-Link's cloud login endpoint every 10 seconds indefinitely. A user testing the
+  PasswordBoxAssistant fix above hit this directly: repeated failed attempts eventually returned a
+  second, undocumented error code (`-20661`, not one of TapoConnect's own named codes either - see
+  `TapoException.ThrowFromErrorCode`) and their real TP-Link account came back "your account was
+  locked" when checked directly at tplinkcloud.com. Fixed by adding `hasConnectedSuccessfully`
+  tracking to `PlugRegistryService`: the poll loop's `RefreshAsync(isBackgroundPoll: true, ...)` now
+  makes no network attempt at all - not even a login - until the *current* username/password have
+  authenticated successfully at least once via an explicit "Refresh Plug List" click
+  (`RefreshAsync(isBackgroundPoll: false, ...)`, or the parameterless overload, which manual call
+  sites use). Changing credentials resets this, so a fresh manual success is required again before
+  the poll loop will retry on its own. Also translated the specific known-empirically-wrong-password
+  code (`-20601`, also not a TapoConnect-named code) to a plain-language message in
+  `TpLinkCloudClient.LoginAsync` - a bare numeric error code means nothing to a non-technical user.
 - **A release zip that installs fine from a manually-copied dev build can still be broken for a real
   install-from-NINA's-repository - these are not the same test.** Every release zip through v0.0.0.4
   wrapped the plugin's files in a top-level `Crepusculum.NINA.SmartPlugControl\` folder (zipping the

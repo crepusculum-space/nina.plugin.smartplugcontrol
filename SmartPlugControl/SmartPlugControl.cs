@@ -39,6 +39,18 @@ namespace Crepusculum.NINA.SmartPlugControl {
 
         public ICommand RefreshPlugsCommand { get; }
 
+        // Deliberately manual-only, not kept live in sync with the equipment page's own background
+        // poll - NINA composes IPluginManifest (this class) and IDockableVM/ISequenceItem (the
+        // equipment page, sequencer items) via two separate MEF CompositionContainers
+        // (PluginLoader.LoadPlugin vs. PluginLoader.Compose, see CLAUDE.md), so this class actually
+        // gets its own separate IPlugRegistryService instance - subscribing to registry.PlugsUpdated
+        // here would only ever fire from this instance's own manual refreshes, never from the
+        // equipment page's, so it wouldn't accomplish anything a plain post-refresh sync doesn't
+        // already do. A real fix would mean this page polling TP-Link's cloud API on its own too,
+        // doubling the login/poll traffic for a cosmetic nicety - not worth it, especially with a real
+        // account lockout already on record from over-polling (see CLAUDE.md). Selecting which plugs
+        // to manage is a rare, deliberate action anyway (a remote-observatory user isn't expected to
+        // reshuffle this list often), so requiring an explicit click here is a fine tradeoff.
         private async Task RefreshPlugsAsync() {
             try {
                 await registry.RefreshAsync();
@@ -72,6 +84,11 @@ namespace Crepusculum.NINA.SmartPlugControl {
                 // exception surfaces, nothing reaches the log, and every later plug refresh just
                 // silently no-ops since the credentials look "not yet configured" instead of "failed
                 // to save". See CLAUDE.md for the real report this was written for.
+                // Diagnostic only (length, never content) - confirms whether this setter is even
+                // being reached at all, and with what, when tracking down a report of the password
+                // silently never saving.
+                Logger.Debug($"SmartPlugControl: TpLinkPassword setter called (length={value?.Length ?? 0}).");
+
                 if (!SecureCredentialStore.IsAvailable()) {
                     Logger.Error("Can't save TP-Link password: Windows DPAPI (credential encryption) failed a round-trip test on this system.");
                     Notification.ShowError("Can't save the TP-Link password: Windows' credential encryption isn't working on this system. This usually means your Windows user profile is temporary, roaming, or otherwise unable to store encryption keys. Smart Plug Control can't function without it - see NINA's log for details, or contact the plugin author.");

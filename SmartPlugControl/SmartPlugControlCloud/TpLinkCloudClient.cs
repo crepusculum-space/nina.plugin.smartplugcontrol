@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TapoConnect;
 using TapoConnect.Dto;
+using TapoConnect.Exceptions;
 using TapoConnect.Util;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
@@ -26,10 +27,22 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
             this.cloudClient = cloudClient;
         }
 
+        // Not one of TapoConnect's own named error codes (TapoException.ThrowFromErrorCode falls
+        // through to its generic "Unexpected Error Code: -20601" message for it) - confirmed
+        // empirically during testing that TP-Link's cloud API returns this specific code for a wrong
+        // username/password, never for a correct login. Translated here so the message shown to the
+        // user (Notification.ShowError uses ex.Message) says something a non-technical user can act
+        // on, instead of a bare numeric code.
+        private const int InvalidCredentialsErrorCode = -20601;
+
         public async Task<string> LoginAsync(string username, string password, CancellationToken token = default) {
-            var login = await cloudClient.LoginAsync(username, password);
-            token.ThrowIfCancellationRequested();
-            return login.Token;
+            try {
+                var login = await cloudClient.LoginAsync(username, password);
+                token.ThrowIfCancellationRequested();
+                return login.Token;
+            } catch (TapoException ex) when (ex.ErrorCode == InvalidCredentialsErrorCode) {
+                throw new InvalidOperationException("Invalid TP-Link username or password.", ex);
+            }
         }
 
         public async Task<IReadOnlyList<CloudPlugDeviceInfo>> ListDevicesAsync(string cloudToken, CancellationToken token = default) {

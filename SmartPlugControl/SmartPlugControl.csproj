@@ -40,13 +40,23 @@
     <None Include="../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-  <PropertyGroup />
+  <PropertyGroup>
+    <!--  NINA's plugin manager extracts an installer archive from the official repository into
+          "<PluginsDir>\<Plugin Display Name>\" (i.e. "Smart Plug Control", the AssemblyTitle - see
+          AssemblyInfo.cs), NOT the assembly name ("Crepusculum.NINA.SmartPlugControl"). The dev
+          PostBuild step below used to deploy to a folder named after $(TargetName) (the assembly
+          name) instead, which is a different folder than the one an install-from-repository uses -
+          so a dev build and a repository install could both be present at once as two separate
+          plugin instances loaded side by side in NINA. Deploying to the same "Smart Plug Control"
+          folder the real installer uses keeps there being only ever one.  -->
+    <PluginDeployName>Smart Plug Control</PluginDeployName>
+  </PropertyGroup>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <!--  IMPORTANT: NINA must be fully closed while building - if it's running, it locks the deployed
           DLL, xcopy fails to overwrite it, and (without /c) that now correctly fails the build instead
           of silently leaving a stale plugin deployed. This bit us for hours: NINA kept running an old
           DLL from before Phase 4/5 while every rebuild "succeeded" - always confirm the build actually
           reports success end-to-end, and if this step fails, close NINA and rebuild.  -->
-    <Exec Command="&#xD;&#xA;if not exist &quot;%25localappdata%25\NINA\Plugins\3.0.0&quot; (&#xD;&#xA;  echo &quot;Creating $(PlatformName) Plugins folder&quot;&#xD;&#xA;  mkdir &quot;%25localappdata%25\NINA\Plugins\3.0.0&quot;&#xD;&#xA;)&#xD;&#xA;if not exist &quot;%25localappdata%25\NINA\Plugins\3.0.0\$(TargetName)&quot; (&#xD;&#xA;  echo &quot;Creating $(PlatformName) Plugins $(TargetName) folder&quot;&#xD;&#xA;  mkdir &quot;%25localappdata%25\NINA\Plugins\3.0.0\$(TargetName)&quot;&#xD;&#xA;)&#xD;&#xA;&#xD;&#xA;echo &quot;Copying $(PlatformName) build output (including dependencies)&quot;&#xD;&#xA;xcopy &quot;$(TargetDir)*&quot; &quot;%25localappdata%25\NINA\Plugins\3.0.0\$(TargetName)&quot; /h/i/k/e/r/y/s&#xD;&#xA;  " />
+    <Exec Command="&#xD;&#xA;if not exist &quot;%25localappdata%25\NINA\Plugins\3.0.0&quot; (&#xD;&#xA;  echo &quot;Creating $(PlatformName) Plugins folder&quot;&#xD;&#xA;  mkdir &quot;%25localappdata%25\NINA\Plugins\3.0.0&quot;&#xD;&#xA;)&#xD;&#xA;if not exist &quot;%25localappdata%25\NINA\Plugins\3.0.0\$(PluginDeployName)&quot; (&#xD;&#xA;  echo &quot;Creating $(PlatformName) Plugins $(PluginDeployName) folder&quot;&#xD;&#xA;  mkdir &quot;%25localappdata%25\NINA\Plugins\3.0.0\$(PluginDeployName)&quot;&#xD;&#xA;)&#xD;&#xA;&#xD;&#xA;echo &quot;Copying $(PlatformName) build output (including dependencies)&quot;&#xD;&#xA;xcopy &quot;$(TargetDir)*&quot; &quot;%25localappdata%25\NINA\Plugins\3.0.0\$(PluginDeployName)&quot; /h/i/k/e/r/y/s&#xD;&#xA;  " />
   </Target>
 </Project>

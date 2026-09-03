@@ -52,10 +52,36 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
                 // Non-fatal - the panel still works without a custom tab icon.
             }
 
-            TurnOnAllCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(registry.TurnOnAllAsync, "turn on all plugs"));
-            TurnOffAllCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(registry.TurnOffAllAsync, "turn off all plugs"));
-            LedsOnCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(t => registry.SetAllLedsAsync(true, t), "turn on all LEDs"));
-            LedsOffCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(t => registry.SetAllLedsAsync(false, t), "turn off all LEDs"));
+            // Each action updates the visible rows itself right after the registry call succeeds,
+            // instead of waiting for the next poll tick to pick up the change - matches what
+            // PlugRowViewModel.ToggleOnOffAsync/ToggleLedAsync already do for a single plug. Mirrors
+            // the registry's own skip rules (TurnOffAllAsync skips protected plugs; LED actions only
+            // apply to plugs that actually support LED control) so the optimistic UI update never
+            // shows a state the registry didn't actually set.
+            TurnOnAllCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
+                await registry.TurnOnAllAsync(t);
+                foreach (var row in Plugs) {
+                    row.SetIsOnLocally(true);
+                }
+            }, "turn on all plugs"));
+            TurnOffAllCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
+                await registry.TurnOffAllAsync(t);
+                foreach (var row in Plugs.Where(p => !p.IsProtected)) {
+                    row.SetIsOnLocally(false);
+                }
+            }, "turn off all plugs"));
+            LedsOnCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
+                await registry.SetAllLedsAsync(true, t);
+                foreach (var row in Plugs.Where(p => p.SupportsLed)) {
+                    row.SetIsLedOnLocally(true);
+                }
+            }, "turn on all LEDs"));
+            LedsOffCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
+                await registry.SetAllLedsAsync(false, t);
+                foreach (var row in Plugs.Where(p => p.SupportsLed)) {
+                    row.SetIsLedOnLocally(false);
+                }
+            }, "turn off all LEDs"));
 
             _ = PollLoopAsync(pollCts.Token);
         }
@@ -111,7 +137,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
         /// </summary>
         internal async Task RefreshTickAsync(CancellationToken token) {
             try {
-                await registry.RefreshAsync(token);
+                // isBackgroundPoll: true - after a login failure, this automatic loop backs off for
+                // BackgroundLoginRetryCooldown before retrying on its own (see PlugRegistryService);
+                // an explicit "Refresh Plug List" click always retries immediately regardless.
+                await registry.RefreshAsync(isBackgroundPoll: true, token);
                 SyncPlugsToUi();
             } catch (OperationCanceledException) {
                 throw;

@@ -10,8 +10,20 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         /// <summary>Every discovered plug regardless of visibility - for the plug-visibility management UI only.</summary>
         IReadOnlyList<PlugViewModel> AllPlugs { get; }
 
-        /// <summary>Re-runs cloud discovery, re-resolves local drivers, and polls live state.</summary>
+        /// <summary>Re-runs cloud discovery, re-resolves local drivers, and polls live state. Always
+        /// makes a network attempt, regardless of past failures - use this for an explicit user
+        /// action (e.g. a "Refresh Plug List" button).</summary>
         Task RefreshAsync(CancellationToken token = default);
+
+        /// <summary>
+        /// Same as RefreshAsync, but with isBackgroundPoll=true: after a login failure, backs off for
+        /// a cooldown before automatically retrying, instead of retrying every call. Use this for an
+        /// automatic poll loop, so it doesn't hammer a failing login every cycle - both to avoid
+        /// spamming an error notification repeatedly and to avoid tripping TP-Link's own login rate
+        /// limit from the repeated attempts. isBackgroundPoll=false (the parameterless overload) is
+        /// never subject to this cooldown - always attempts immediately.
+        /// </summary>
+        Task RefreshAsync(bool isBackgroundPoll, CancellationToken token = default);
 
         void SetEquipmentName(string plugId, string equipmentName);
         void SetProtected(string plugId, bool isProtected);

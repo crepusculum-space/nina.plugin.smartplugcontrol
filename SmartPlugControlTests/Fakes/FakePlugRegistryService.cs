@@ -11,7 +11,9 @@ namespace SmartPlugControlTests.Fakes {
         public IReadOnlyList<PlugViewModel> Plugs { get; } = new List<PlugViewModel>();
         public IReadOnlyList<PlugViewModel> AllPlugs { get; } = new List<PlugViewModel>();
 
-        public Task RefreshAsync(CancellationToken token = default) {
+        public Task RefreshAsync(CancellationToken token = default) => RefreshAsync(isBackgroundPoll: false, token);
+
+        public Task RefreshAsync(bool isBackgroundPoll, CancellationToken token = default) {
             RefreshCallCount++;
             return Task.CompletedTask;
         }

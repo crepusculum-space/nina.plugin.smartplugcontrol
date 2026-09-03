@@ -105,6 +105,20 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
         public ICommand ToggleLedCommand { get; }
         public ICommand ToggleProtectedCommand { get; }
 
+        /// <summary>Called by the equipment page right after a bulk on/off action succeeds, so the
+        /// switch updates immediately instead of waiting for the next poll tick - mirrors what
+        /// ToggleOnOffAsync already does for a single plug.</summary>
+        public void SetIsOnLocally(bool isOn) {
+            model.IsOn = isOn;
+            RaisePropertyChanged(nameof(IsOn));
+        }
+
+        /// <summary>Same as SetIsOnLocally, for a bulk LED action.</summary>
+        public void SetIsLedOnLocally(bool isLedOn) {
+            model.IsLedOn = isLedOn;
+            RaisePropertyChanged(nameof(IsLedOn));
+        }
+
         private async Task ToggleOnOffAsync() {
             bool turningOff = model.IsOn == true;
 

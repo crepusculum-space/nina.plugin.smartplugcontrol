@@ -55,6 +55,22 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private string cachedTokenUsername;
         private string cachedTokenPassword;
 
+        // Self-contained cooldown for the background poll loop after a login failure - deliberately
+        // NOT "wait for some other caller to prove these credentials work first" (an earlier version
+        // of this fix did that with a hasConnectedSuccessfully flag, gated so only isBackgroundPoll:
+        // false could ever set it true). That design silently deadlocked: if the equipment page's
+        // poll loop and the Options page's manual button don't share the same PlugRegistryService
+        // instance (unconfirmed either way, but the deadlock is real either way it turns out), the
+        // poll loop's own flag could never become true by itself, since a background poll is never
+        // allowed to attempt a login at all until the flag is already true - so it stayed permanently
+        // gated even after a real, confirmed-successful manual login elsewhere. This backoff design
+        // has no such dependency: any single instance manages its own cooldown from its own attempts,
+        // so it can't deadlock regardless of how many instances exist. A manual refresh always
+        // attempts immediately (isBackgroundPoll: false is never subject to this cooldown); a
+        // background poll skips only for a limited time after ITS OWN most recent failed attempt.
+        private DateTime? lastLoginFailureUtc;
+        private static readonly TimeSpan BackgroundLoginRetryCooldown = TimeSpan.FromMinutes(5);
+
         // Kept across refreshes so the UI/sequencer can act on a plug (on/off/LED) without triggering
         // a full re-discovery first. Rebuilt wholesale on every RefreshAsync.
         private Dictionary<string, IPlugDriver> driversByPlugId = new Dictionary<string, IPlugDriver>();
@@ -84,7 +100,15 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
             pluginSettings = new PluginOptionsAccessor(profileService, PluginGuid);
         }
 
-        public async Task RefreshAsync(CancellationToken token = default) {
+        public Task RefreshAsync(CancellationToken token = default) => RefreshAsync(isBackgroundPoll: false, token);
+
+        /// <param name="isBackgroundPoll">
+        /// True for the equipment page's automatic poll loop; false for an explicit user action (the
+        /// "Refresh Plug List" button). Only a background poll is ever subject to
+        /// BackgroundLoginRetryCooldown after a login failure - a manual refresh always attempts
+        /// immediately, regardless of how recently a background attempt failed.
+        /// </param>
+        public async Task RefreshAsync(bool isBackgroundPoll, CancellationToken token = default) {
             string username = Settings.Default.TpLinkUsername;
             string password = SecureCredentialStore.Unprotect(Settings.Default.TpLinkPasswordProtected);
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)) {
@@ -97,12 +121,29 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 return;
             }
 
+            if (cachedTokenUsername != username || cachedTokenPassword != password) {
+                // Credentials changed since the last attempt (first-ever configuration, or edited in
+                // Options) - a cooldown started by the *old* credentials failing says nothing about
+                // whether these new ones will too, so give the new ones an immediate first try.
+                lastLoginFailureUtc = null;
+            }
+
+            if (isBackgroundPoll && lastLoginFailureUtc != null && DateTime.UtcNow - lastLoginFailureUtc.Value < BackgroundLoginRetryCooldown) {
+                Logger.Debug($"SmartPlugControl: background poll skipped - a login attempt failed within the last {BackgroundLoginRetryCooldown}; use Refresh Plug List to retry immediately.");
+                return;
+            }
+
             await refreshLock.WaitAsync(token);
             try {
                 if (cachedToken == null || cachedTokenUsername != username || cachedTokenPassword != password) {
                     // Credentials changed since the cached token was obtained (e.g. edited in Options) -
                     // discard it rather than keep using a session tied to the previous account.
-                    cachedToken = await cloudClient.LoginAsync(username, password, token);
+                    try {
+                        cachedToken = await cloudClient.LoginAsync(username, password, token);
+                    } catch (Exception) when (!token.IsCancellationRequested) {
+                        lastLoginFailureUtc = DateTime.UtcNow;
+                        throw;
+                    }
                     cachedTokenUsername = username;
                     cachedTokenPassword = password;
                 }
@@ -113,9 +154,15 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 } catch (Exception) when (!token.IsCancellationRequested) {
                     // Cached token stopped working (expired/invalidated) - log in exactly once more
                     // rather than falling back to logging in on every future cycle.
-                    cachedToken = await cloudClient.LoginAsync(username, password, token);
+                    try {
+                        cachedToken = await cloudClient.LoginAsync(username, password, token);
+                    } catch (Exception) when (!token.IsCancellationRequested) {
+                        lastLoginFailureUtc = DateTime.UtcNow;
+                        throw;
+                    }
                     cloudDevices = await cloudClient.ListDevicesAsync(cachedToken, token);
                 }
+                lastLoginFailureUtc = null;
                 string cloudToken = cachedToken;
                 var persisted = LoadPersistedData();
 
@@ -151,7 +198,17 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
 
                     if (!usesLegacyProtocol) {
                         var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
-                        var klapDriver = new KlapPlugDriver(device.DeviceId, device.Alias, deviceIp, username, password);
+
+                        // Reuse the existing driver (and its cached KLAP login session) across refresh
+                        // cycles instead of building a fresh one every time - this used to force a brand
+                        // new local KLAP handshake against the physical device on every poll cycle
+                        // (default every 10s), hammering the device's own authentication exactly like
+                        // the earlier TP-Link cloud login-retry-storm that got a real account locked (see
+                        // CLAUDE.md). Only rebuild if the device is new or its resolved local IP changed.
+                        KlapPlugDriver klapDriver = driversByPlugId.TryGetValue(device.DeviceId, out var existingDriver) &&
+                            existingDriver is KlapPlugDriver existingKlapDriver && existingKlapDriver.DeviceIp == deviceIp
+                                ? existingKlapDriver
+                                : new KlapPlugDriver(device.DeviceId, device.Alias, deviceIp, username, password);
 
                         bool? isOn = null;
                         PlugPowerReading power = null;

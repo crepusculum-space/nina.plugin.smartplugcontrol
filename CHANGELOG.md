@@ -4,6 +4,58 @@ All notable changes to Smart Plug Control are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+## [0.0.0.7] - 2026-09-03
+
+### Fixed
+
+- **The password field could silently fail to save on a genuinely fresh install/first-time setup**
+  (as opposed to the DPAPI-failure case fixed in 0.0.0.6) - reported by the same user, still
+  reproducing on two machines even with 0.0.0.6 installed. Root cause: WPF can skip invoking the
+  `PasswordBox` binding helper's change callback entirely when the very first value it's asked to
+  push equals that property's registered default - and an empty password (true for every user before
+  they've ever saved one) used to be exactly equal to that default (`string.Empty`), so the event
+  subscription that relays typed characters back to the view model never happened at all. Fixed by
+  registering the default as `null` instead, which no real password value can ever equal, so the
+  first bind is always seen as a genuine change.
+- Wrong-password logins showed a raw, meaningless TP-Link error code
+  (`"Unexpected Error Code: -20601"`) instead of a message a non-technical user could act on - now
+  translated to "Invalid TP-Link username or password."
+- **The equipment page's automatic poll loop retried a failing cloud login every refresh interval
+  (10s by default) forever, with no backoff** - both showing a repeated error notification every
+  cycle and, more seriously, hammering TP-Link's own login endpoint closely enough to trip their
+  rate limiting. Confirmed with a real account: repeated failed attempts during testing of the fix
+  above eventually returned a second, different error code (`-20661`) and the account showing
+  "your account was locked" on tplinkcloud.com when logging in directly to check. The automatic poll
+  loop now backs off for 5 minutes after a failed login before retrying on its own; an explicit
+  "Refresh Plug List" click always retries immediately regardless of that cooldown.
+- **A previously-selected plug could show up on the equipment page but not in the Options page's
+  plug-visibility list without an explicit "Refresh Plug List" click there.** This turned out to be a
+  fundamental NINA plugin-loader constraint, not a bug we could fully engineer around: the equipment
+  page and the Options page are composed via two separate MEF containers, so they never actually
+  share the same in-memory plug list. Rather than doubling TP-Link API polling to paper over this,
+  the Options page stays manual-refresh-only by design - documented here so it isn't mistaken for a
+  regression.
+- **"Turn Off All Plugs" (and other KLAP-family actions) could fail with `Forbidden`/`Bad Request`,
+  or occasionally with a garbled decryption/JSON error, after otherwise working fine.** Root cause: a
+  fix earlier in this same cycle made each KLAP device's local session get rebuilt from scratch on
+  every automatic poll cycle (every 10s by default) instead of being reused - hammering the physical
+  device's own local authentication the same way the cloud login-retry-storm above once hammered
+  TP-Link's servers. The device would eventually reject the repeated handshakes outright, or (more
+  confusingly) accept a stale cached session for one more request but respond with data our cached
+  session could no longer correctly decrypt, surfacing as an AES padding error or malformed JSON
+  instead of a clean "your session is invalid" error. Fixed by reusing a device's KLAP session across
+  refresh cycles instead of rebuilding it every time, and by treating any failure of an
+  already-authenticated request - not just the "named" session-expired cases - as a possibly-stale
+  session worth one automatic re-login retry.
+
+### Changed
+
+- "Turn All Plugs On/Off" and "All LEDs On/Off" on the equipment page now update each switch
+  immediately after the action succeeds, instead of waiting for the next automatic poll tick to catch
+  up - matching how toggling a single plug already behaved.
+
 ## [0.0.0.6] - 2026-08-30
 
 ### Fixed

@@ -23,6 +23,9 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         public string PlugId { get; }
         public string Alias { get; }
 
+        /// <summary>Exposed so PlugRegistryService can tell whether a device's resolved local IP changed since a cached driver was built for it.</summary>
+        public string DeviceIp => deviceIp;
+
         public KlapPlugDriver(string plugId, string alias, string deviceIp, string username, string password) {
             PlugId = plugId;
             Alias = alias;
@@ -39,11 +42,27 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
             return deviceKey;
         }
 
+        // A cached KLAP session (deviceKey) is now reused across many refresh cycles instead of being
+        // rebuilt every ~10s (see PlugRegistryService/CLAUDE.md), so it can genuinely go stale mid-life
+        // - e.g. the device silently rotating/invalidating the session for reasons outside our control
+        // (another driver instance re-authenticating against the same physical device, the device's own
+        // firmware timing out an idle session, etc). Real hardware testing showed this does NOT always
+        // surface as a clean error: a stale session's KLAP cipher is out of sync with the device, so a
+        // request can come back encrypted/framed for a session we no longer share - which shows up as
+        // TapoConnect trying to decrypt or JSON-parse garbage (CryptographicException: "Padding is
+        // invalid", or a JsonException on $.error_code), not just the "named" failure types
+        // (TapoDeviceTokenExpiredOrInvalidException, or HttpResponseException Forbidden/BadRequest).
+        // So: treat ANY failure of an already-authenticated request (not the login itself, which is
+        // outside this try/catch) as a possibly-stale session - drop the cached key and retry once with
+        // a fresh login. A genuinely offline/unreachable device just fails the same way again on retry
+        // and still surfaces to the caller, at the cost of one extra round-trip.
+        private static bool IsStaleSessionError(Exception ex) => !(ex is OperationCanceledException);
+
         private async Task<T> WithRetryAsync<T>(Func<TapoDeviceKey, Task<T>> action, CancellationToken token) {
             var key = await GetDeviceKeyAsync(token);
             try {
                 return await action(key);
-            } catch (TapoDeviceTokenExpiredOrInvalidException) {
+            } catch (Exception ex) when (IsStaleSessionError(ex)) {
                 deviceKey = null;
                 key = await GetDeviceKeyAsync(token);
                 return await action(key);
@@ -54,7 +73,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
             var key = await GetDeviceKeyAsync(token);
             try {
                 await action(key);
-            } catch (TapoDeviceTokenExpiredOrInvalidException) {
+            } catch (Exception ex) when (IsStaleSessionError(ex)) {
                 deviceKey = null;
                 key = await GetDeviceKeyAsync(token);
                 await action(key);
