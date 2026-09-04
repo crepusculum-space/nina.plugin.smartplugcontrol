@@ -71,6 +71,18 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         private DateTime? lastLoginFailureUtc;
         private static readonly TimeSpan BackgroundLoginRetryCooldown = TimeSpan.FromMinutes(5);
 
+        // Tracks the credentials of the most recent login *attempt*, successful or not - deliberately
+        // separate from cachedTokenUsername/cachedTokenPassword (which only update on SUCCESS). The
+        // "did credentials change" check below needs to compare against what was last tried, not what
+        // last worked - otherwise, for as long as a login keeps failing, cachedTokenUsername/Password
+        // stay at their initial null forever, so the same still-wrong credentials look "changed" on
+        // literally every call, resetting lastLoginFailureUtc every time and defeating the cooldown
+        // entirely (confirmed on real hardware: a bad password produced a fresh error notification
+        // every ~10s poll cycle instead of backing off - the exact login-retry-storm this cooldown was
+        // built to prevent in the first place - see CLAUDE.md).
+        private string lastAttemptedUsername;
+        private string lastAttemptedPassword;
+
         // Kept across refreshes so the UI/sequencer can act on a plug (on/off/LED) without triggering
         // a full re-discovery first. Rebuilt wholesale on every RefreshAsync.
         private Dictionary<string, IPlugDriver> driversByPlugId = new Dictionary<string, IPlugDriver>();
@@ -121,11 +133,13 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                 return;
             }
 
-            if (cachedTokenUsername != username || cachedTokenPassword != password) {
+            if (lastAttemptedUsername != username || lastAttemptedPassword != password) {
                 // Credentials changed since the last attempt (first-ever configuration, or edited in
                 // Options) - a cooldown started by the *old* credentials failing says nothing about
                 // whether these new ones will too, so give the new ones an immediate first try.
                 lastLoginFailureUtc = null;
+                lastAttemptedUsername = username;
+                lastAttemptedPassword = password;
             }
 
             if (isBackgroundPoll && lastLoginFailureUtc != null && DateTime.UtcNow - lastLoginFailureUtc.Value < BackgroundLoginRetryCooldown) {

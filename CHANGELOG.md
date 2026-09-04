@@ -30,6 +30,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   "your account was locked" on tplinkcloud.com when logging in directly to check. The automatic poll
   loop now backs off for 5 minutes after a failed login before retrying on its own; an explicit
   "Refresh Plug List" click always retries immediately regardless of that cooldown.
+- **That same cooldown never actually engaged as long as the login kept failing** - a fresh reinstall
+  with a wrong password reproduced the exact repeated-notification-every-10s symptom the cooldown
+  above was meant to prevent. Root cause: the "did credentials change" check that resets the cooldown
+  compared the current username/password against the credentials of the last *successful* login -
+  which, for as long as login keeps failing, never gets set, so it stays `null` forever and looks
+  "changed" (i.e. different from the real, unchanging, still-wrong credentials) on every single call.
+  Fixed by tracking the credentials of the last login *attempt* separately from the last success.
 - **A previously-selected plug could show up on the equipment page but not in the Options page's
   plug-visibility list without an explicit "Refresh Plug List" click there.** This turned out to be a
   fundamental NINA plugin-loader constraint, not a bug we could fully engineer around: the equipment
@@ -55,6 +62,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - "Turn All Plugs On/Off" and "All LEDs On/Off" on the equipment page now update each switch
   immediately after the action succeeds, instead of waiting for the next automatic poll tick to catch
   up - matching how toggling a single plug already behaved.
+
+### Added
+
+- A logo (`docs/logo.png`, `FeaturedImageURL`), shown in NINA's plugin list and Options page -
+  previously the plugin only showed NINA's generic placeholder icon.
 
 ## [0.0.0.6] - 2026-08-30
 
