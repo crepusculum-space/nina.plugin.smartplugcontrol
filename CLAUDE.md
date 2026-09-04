@@ -459,6 +459,19 @@ zip-packaging bug (see Changelog/gotchas below) was the last blocker - once that
 merged without further back-and-forth. The plugin is now publicly listed and installable by anyone
 through NINA's built-in plugin manager, not just via manual zip installation from GitHub Releases.
 
+**v0.0.0.7 manifest PR merged 2026-09-04 (isbeorn/nina.plugin.manifests#677).** Followed the same
+fork-resync workflow as #589 (the crepusculum-space fork's `main` had again diverged from
+`upstream/main` since other plugins' PRs merged in the meantime - reset to `upstream/main` and
+force-pushed before branching for this update; this is now the established, repeatable pattern for
+every future manifest update, not a one-off). Also the first release to carry a real plugin logo
+(`docs/logo.png`, `FeaturedImageURL`) instead of NINA's generic placeholder icon - confirmed via
+NINA's own source (`AvailablePluginsView.xaml`/`PluginsView.xaml`) that a single manifest field drives
+both the small icon in the plugin list and the larger image on the plugin's detail/Options page (just
+rendered at different sizes) - no separate "list icon" vs "options icon" field exists. Real-world logo
+size convention (checked against two other published plugins' actual files, not documented anywhere
+in the manifest schema) is 1024x1024 PNG with a transparent background - the schema itself only
+requires `FeaturedImageURL` to be a valid URI, no dimension constraint.
+
 ## Gotchas already paid for — don't re-learn these
 
 - **A `DependencyProperty` registered with a default value that a real bound value can legitimately
