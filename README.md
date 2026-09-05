@@ -9,24 +9,39 @@ to plug state from the Advanced Sequencer.
 Smart Plug Control is built for **multi-tenant commercial remote observatories**, where several
 clients' equipment can share the same network - not just backyard/personal setups. Your TP-Link
 account is always the authoritative device list (you already have to add a plug to your Kasa/Tapo
-account to use it at all), and every discovered device is checked for physical presence on this PC's
-local network before it's shown or controlled at all - a plug on your account but at a different
-site (a different observatory, home) never shows up here.
+account to use it at all). How a device is actually controlled, and how the account boundary is
+enforced, then depends on its protocol - not a setting you choose:
 
-How a present device is actually controlled then depends on its protocol, not a setting you choose:
 - **Older-generation Kasa devices** (e.g. HS103, KP303) are controlled through the TP-Link cloud
-  relay. This protocol has no local authentication at all, so routing it through the cloud lets
-  TP-Link enforce the account boundary server-side - your login can only ever control devices linked
-  to your own account, independent of network topology.
+  relay, shown and controlled regardless of network topology. This protocol has no local
+  authentication at all, so routing it through the cloud lets TP-Link enforce the account boundary
+  server-side - your login can only ever control devices linked to your own account, independent of
+  which physical network they're on. If your account also has plugs at a different site (e.g. home
+  and an observatory), use **Visible in NINA** (see Setup below) to hide the ones that don't belong
+  in this instance - it's no longer filtered automatically.
 - **Tapo devices and newer-generation Kasa devices** (e.g. the KP125M) use TP-Link's newer
   KLAP/securePassthrough protocol, which has no cloud-relay path at all - every implementation
-  (official app included) talks directly to the device's local IP. This is still safe for the
+  (official app included) talks directly to the device's local IP, so it's only shown/controlled if
+  it's physically reachable on **this PC's own local network**. This is still safe for the
   multi-tenant threat model: the KLAP handshake itself is verified by the device against a hash of
   your actual TP-Link account credentials (stored on the device since it was paired), so another
   tenant on the same network can't control your device without knowing your account password.
 
 If you only ever run NINA on your own private home network, none of this changes how you use the
 plugin day to day.
+
+### A real limitation at some multi-tenant sites: client VLANs
+
+Some commercial remote observatories give each client's Ethernet-wired NINA PC its own isolated
+VLAN, while smart plugs sit on the site's own shared WiFi - a **different** VLAN. Kasa devices
+(cloud-controlled, see above) are unaffected by this. But **Tapo/newer-Kasa (KLAP) devices need to be
+on the same local network as this PC to be reachable at all** - if they're on a separate VLAN, this
+plugin has no way to reach them, and they won't show up. This isn't something the plugin can work
+around in software; the fix is operational: ask your observatory operator to put your Tapo/newer-Kasa
+plugs' WiFi on **your own** client VLAN rather than a site-wide shared network (this is the same
+arrangement many sites already use for equipment with no Ethernet port at all, e.g. smart telescopes -
+bring your own WiFi router, plugged into your client VLAN's Ethernet drop instead of directly into
+your PC, and put both your PC and your smart plugs on it).
 
 ## Requirements
 
@@ -69,20 +84,26 @@ Smart Plug Control is listed in NINA's official plugin repository - the easiest 
 A dockable panel in NINA's **Imaging** tab (toolbar icon to show/hide it without leaving the Imaging
 view) lists every visible plug with:
 
-- Live on/off status and a toggle to switch it.
+- Live on/off status and a toggle to switch it. A Tapo/newer-Kasa plug that's currently unreachable
+  (see the VLAN limitation above, or simply unplugged/offline) shows **Off Line** instead of a
+  switch, rather than disappearing from the list.
+- Multi-outlet power strips (Kasa's KP303, Tapo's P300 family/P316M) show each outlet as its own row,
+  individually named/controlled - not one row for the whole strip.
 - An editable **Equipment** name (e.g. "Mount", "Dew heater") so plugs are easy to identify.
-- LED toggle, for plugs/strips that have one.
+- LED toggle, for plugs/strips that have one. On a power strip, this is always one indicator for the
+  whole strip (matching the physical hardware), not one per outlet.
 - A **Protected** lock - a protected plug can't be turned off from the sequencer at all, and
   requires two confirmations here in the equipment page.
 - Live power draw, on plugs/strips that support energy monitoring, alongside an estimated Amps
-  figure (see Settings below for the line voltage used).
+  figure (see Settings below for the line voltage used). On a power strip that supports it (e.g. the
+  P316M), this is read per outlet, not just for the whole strip.
 - On monitoring-capable plugs, two more fields: **Max (A@12V)** and **PSU eff (%)** - the rated max
   draw (in Amps at 12V DC) of whatever's plugged in there (e.g. a Pegasus Powerbox) and an estimated
   power-supply efficiency, used by the consumption trigger/loop conditions below. These are properties
   of the equipment itself, essentially invariant, so they're configured once here rather than
   per-sequence-item - set them once when you plug something in and forget about them.
 - Bulk **All Plugs On/Off** and **All LEDs On/Off** buttons (protected plugs are skipped by "All
-  Plugs Off").
+  Plugs Off"; an "Off Line" plug is skipped by all four, since there's nothing to actually change).
 
 ## Sequencer support
 
@@ -144,8 +165,9 @@ notification plugin like Ground Station for the actual push/email alert.
   the Amps figure is a further estimate on top of that (see the in-app explanation of the Watts↔Amps
   math). Use the consumption triggers/conditions for a rough "is this roughly where I expect it to
   be" signal and manual notification only - not for anything that needs to be exact.
-- **Tapo/newer-Kasa LED control isn't available.** No LED-related field has been found in these
-  devices' status response, unlike legacy Kasa.
+- **LED control for single Tapo/newer-Kasa plugs (e.g. the P115, KP125M) isn't available.** No
+  LED-related field has been found in these devices' status response. Multi-outlet Tapo power strips
+  (e.g. the P316M) are unaffected - see the Equipment page section above.
 - A plug's on/off state is only re-checked by the sequencer between instructions, never while one is
   running - a trigger can't react mid-instruction to a change that happens during a long exposure or
   wait.
@@ -171,8 +193,10 @@ See [CHANGELOG.md](CHANGELOG.md).
 Part of `SmartPlugControlCloud/KasaCloudPassthroughClient.cs` (the legacy-Kasa cloud passthrough
 protocol) was reverse-engineered by consulting two GPL-3.0-licensed reference implementations
 ([piekstra/tplink-cloud-api](https://github.com/piekstra/tplink-cloud-api) and
-[python-kasa](https://github.com/python-kasa/python-kasa)) - this plugin is licensed as GPL-3.0-only
-as a whole to stay compatible with that.
+[python-kasa](https://github.com/python-kasa/python-kasa)), and part of
+`SmartPlugControlDrivers/PowerStripKlapDeviceClient.cs` (Tapo power strip child-outlet commands and
+LED control) was similarly written with direct reference to python-kasa
+(GPL-3.0-or-later) - this plugin is licensed as GPL-3.0-only as a whole to stay compatible with that.
 
 ## Third-party licenses
 
