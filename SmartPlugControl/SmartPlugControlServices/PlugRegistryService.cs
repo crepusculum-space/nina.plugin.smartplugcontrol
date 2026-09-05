@@ -192,48 +192,46 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                     string deviceIp = null;
                     bool? resolved = string.IsNullOrEmpty(device.DeviceMac) ? (bool?)null : TapoConnect.Util.TapoUtils.TryGetIpAddressByMacAddress(device.DeviceMac, out deviceIp);
 
-                    // The account may include plugs that aren't physically at this site at all (the same
-                    // TP-Link account used at a different observatory, or at home) - exclude those
-                    // entirely rather than just hiding them, since nothing here should ever list, let
-                    // alone control, a plug this PC can't actually reach.
-                    if (resolved != true) {
+                    // Legacy "IOT.*" devices (older Kasa models like HS103/KP303) have no local
+                    // authentication at all, so they're controlled exclusively via the cloud relay -
+                    // only TP-Link's own account-boundary check (the cloud login) can guarantee only
+                    // this account's instance controls them. "SMART.*" devices (Tapo and newer-generation
+                    // Kasa, e.g. the KP125M) use the KLAP/securePassthrough protocol, which has no
+                    // cloud-relay path at all - but its handshake is itself gated on the real account
+                    // credentials stored on the device since pairing, so local control is exactly as safe
+                    // as cloud for these.
+                    bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
+
+                    // Local presence only matters for KLAP devices, which control directly over the local
+                    // network and simply cannot function without a locally-resolved IP - excluded
+                    // entirely here, same as before (rather than shown as "known but uncontrollable").
+                    // Legacy Kasa devices control exclusively through the cloud relay, which never needed
+                    // local reachability at all - TP-Link's own login already guarantees the account
+                    // boundary regardless of network topology. Requiring local presence for them too was
+                    // really an unrelated convenience filter (avoid showing a device from a different one
+                    // of the user's own sites, e.g. a home plug on the same account as an observatory
+                    // instance) - and it silently broke real multi-tenant observatories that isolate each
+                    // client's Ethernet VLAN from the shared WiFi VLAN their smart plugs sit on: the plug
+                    // is genuinely at the site, just unreachable via ARP from this specific VLAN.
+                    // Confirmed by a real user report - a legacy-protocol-adjacent device in that exact
+                    // topology showed up as nothing at all. "Visible in NINA" remains the manual way to
+                    // hide a truly unrelated device, rather than an automatic-but-unreliable network
+                    // heuristic that only ever worked by accident on a single flat network.
+                    if (!usesLegacyProtocol && resolved != true) {
                         continue;
                     }
 
-                    // Legacy "IOT.*" devices (older Kasa models like HS103/KP303) have no local
-                    // authentication at all, so they're still controlled exclusively via the cloud relay
-                    // even though we've just confirmed they're on this LAN - only TP-Link's own
-                    // account-boundary check (the cloud login) can guarantee only this account's
-                    // instance controls them. "SMART.*" devices (Tapo and newer-generation Kasa, e.g. the
-                    // KP125M) use the KLAP/securePassthrough protocol, which has no cloud-relay path at
-                    // all - but its handshake is itself gated on the real account credentials stored on
-                    // the device since pairing, so local control is exactly as safe as cloud for these.
-                    bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
-
                     if (!usesLegacyProtocol) {
-                        var data = persisted.TryGetValue(device.DeviceId, out var d) ? d : new PlugPersistedData { PlugId = device.DeviceId };
-
-                        // Reuse the existing driver (and its cached KLAP login session) across refresh
-                        // cycles instead of building a fresh one every time - this used to force a brand
-                        // new local KLAP handshake against the physical device on every poll cycle
-                        // (default every 10s), hammering the device's own authentication exactly like
-                        // the earlier TP-Link cloud login-retry-storm that got a real account locked (see
-                        // CLAUDE.md). Only rebuild if the device is new or its resolved local IP changed.
-                        KlapPlugDriver klapDriver = driversByPlugId.TryGetValue(device.DeviceId, out var existingDriver) &&
-                            existingDriver is KlapPlugDriver existingKlapDriver && existingKlapDriver.DeviceIp == deviceIp
-                                ? existingKlapDriver
-                                : new KlapPlugDriver(device.DeviceId, device.Alias, deviceIp, username, password);
-
-                        bool? isOn = null;
-                        PlugPowerReading power = null;
+                        // Reuses cached driver instances (and their KLAP login sessions) across refresh
+                        // cycles instead of building fresh ones every time - see CLAUDE.md on why that
+                        // matters (hammering a device's own local authentication every poll cycle caused
+                        // real failures). Also probes whether this device has child outlets (a power
+                        // strip, e.g. the P300 family/P316M) and returns one driver per outlet if so -
+                        // TapoConnect itself has no concept of child outlets, see
+                        // PowerStripKlapDeviceClient/KlapPlugDriverFactory.
+                        IReadOnlyList<KlapPlugDriver> klapDrivers;
                         try {
-                            isOn = await klapDriver.IsOnAsync(token);
-                            if (!knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)) {
-                                power = await klapDriver.GetPowerAsync(token);
-                                if (power == null) {
-                                    knownPowerUnsupportedPlugIds.Add(klapDriver.PlugId);
-                                }
-                            }
+                            klapDrivers = await KlapPlugDriverFactory.CreateAsync(device.DeviceId, device.Alias, deviceIp, username, password, driversByPlugId, token);
                         } catch (Exception ex) {
                             // Most likely: this device was actually paired under a different TP-Link
                             // account than the one configured in Options (shouldn't normally happen,
@@ -244,8 +242,29 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                             continue;
                         }
 
-                        newDrivers[klapDriver.PlugId] = klapDriver;
-                        newPlugs.Add(ToViewModel(device, klapDriver.PlugId, klapDriver.Alias, data, isOn, power, supportsLed: false, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)));
+                        foreach (var klapDriver in klapDrivers) {
+                            var data = persisted.TryGetValue(klapDriver.PlugId, out var d) ? d : new PlugPersistedData { PlugId = klapDriver.PlugId };
+
+                            bool? isOn = null;
+                            PlugPowerReading power = null;
+                            try {
+                                isOn = await klapDriver.IsOnAsync(token);
+                                if (!knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)) {
+                                    power = await klapDriver.GetPowerAsync(token);
+                                    if (power == null) {
+                                        knownPowerUnsupportedPlugIds.Add(klapDriver.PlugId);
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                // One outlet on a power strip going offline/erroring shouldn't take the
+                                // rest of the strip's outlets down with it.
+                                Logger.Error($"Failed to read state from KLAP device '{klapDriver.Alias}' ({klapDriver.PlugId}) at {deviceIp}", ex);
+                                continue;
+                            }
+
+                            newDrivers[klapDriver.PlugId] = klapDriver;
+                            newPlugs.Add(ToViewModel(device, klapDriver.PlugId, klapDriver.Alias, data, isOn, power, supportsLed: false, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)));
+                        }
                         continue;
                     }
 

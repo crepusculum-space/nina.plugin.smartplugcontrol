@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.8] - 2026-09-05
+
+### Added
+
+- **Preliminary support for Tapo multi-outlet power strips (e.g. the P300 family/P316M).** Previously
+  only a single "whole strip" entry showed up, not the individual outlets - the KLAP protocol library
+  this plugin depends on for Tapo/newer-Kasa devices has no support at all for the child-outlet
+  commands these strips use (`get_child_device_list`/`control_child`), so this plugin now implements
+  them directly. **Not yet validated against real P300-family hardware - please report back whether
+  this actually works before it's considered done.**
+
+### Fixed
+
+- **A Kasa legacy plug not physically reachable on this PC's local network (e.g. its WiFi is on a
+  different VLAN than the client's own wired network at a multi-tenant observatory) was excluded from
+  the plug list entirely, even though legacy Kasa is controlled exclusively through the TP-Link cloud
+  relay and never needed local reachability in the first place.** The local-presence check now only
+  applies to Tapo/newer-Kasa (KLAP) devices, which do genuinely need it. Tapo/newer-Kasa devices on a
+  different network segment than the NINA PC remain unreachable - that part is a real network-topology
+  limitation, not something this plugin can work around in software (see CLAUDE.md).
+
 ## [0.0.0.7] - 2026-09-03
 
 ### Fixed

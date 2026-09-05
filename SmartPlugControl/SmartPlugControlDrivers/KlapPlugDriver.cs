@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TapoConnect;
+using TapoConnect.Dto;
 using TapoConnect.Exceptions;
 
 namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
@@ -11,12 +14,21 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
     /// cloud-relay path at all (see CLAUDE.md "Architecture history" for why this is still safe for the
     /// multi-tenant threat model: the KLAP handshake itself is gated on the real TP-Link account
     /// credentials stored on the device since pairing).
+    ///
+    /// Also represents a single outlet of a multi-outlet Tapo power strip (e.g. P300/P316M), when
+    /// constructed with a <paramref name="childDeviceId"/> - see <see cref="KlapPlugDriverFactory"/>,
+    /// which is what actually decides whether a device needs one instance or several. TapoConnect
+    /// itself has no concept of child outlets at all (confirmed by reading its DeviceGetInfoResult DTO
+    /// - no children field of any kind); PowerStripKlapDeviceClient adds the missing
+    /// get_child_device_list/control_child commands this class needs for that case.
     /// </summary>
     public class KlapPlugDriver : IPlugDriver {
         private readonly ITapoDeviceClient client;
+        private readonly PowerStripKlapDeviceClient powerStripClient = new PowerStripKlapDeviceClient();
         private readonly string deviceIp;
         private readonly string username;
         private readonly string password;
+        private readonly string childDeviceId;
         private TapoDeviceKey deviceKey;
         private bool? energyMonitoringSupported;
 
@@ -26,12 +38,19 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         /// <summary>Exposed so PlugRegistryService can tell whether a device's resolved local IP changed since a cached driver was built for it.</summary>
         public string DeviceIp => deviceIp;
 
-        public KlapPlugDriver(string plugId, string alias, string deviceIp, string username, string password) {
+        /// <param name="childDeviceId">
+        /// Null for a single-outlet device (the common case). For one outlet of a multi-outlet power
+        /// strip, the child's own device_id (from get_child_device_list) - every operation is then
+        /// wrapped in a control_child envelope targeting this specific outlet, and IsOnAsync reads this
+        /// outlet's own entry from the child list rather than the whole device's state.
+        /// </param>
+        public KlapPlugDriver(string plugId, string alias, string deviceIp, string username, string password, string childDeviceId = null) {
             PlugId = plugId;
             Alias = alias;
             this.deviceIp = deviceIp;
             this.username = username;
             this.password = password;
+            this.childDeviceId = childDeviceId;
             client = new TapoDeviceClient();
         }
 
@@ -41,6 +60,25 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
             }
             return deviceKey;
         }
+
+        /// <summary>
+        /// Lets KlapPlugDriverFactory hand a child driver the parent's already-established session
+        /// instead of making it log in separately - a power strip's outlets all share one physical
+        /// device/one KLAP session, so logging in per-outlet would be exactly the kind of redundant
+        /// re-authentication CLAUDE.md's gotchas warn about.
+        /// </summary>
+        internal void AdoptSessionFrom(KlapPlugDriver parent) {
+            deviceKey = parent.deviceKey;
+        }
+
+        /// <summary>
+        /// Probes whether this device has child outlets at all (a power strip) - null/empty for an
+        /// ordinary single-outlet device. Only meaningful on a driver constructed without a
+        /// childDeviceId (i.e. representing the whole physical device); used by
+        /// KlapPlugDriverFactory to decide whether to build one driver or several.
+        /// </summary>
+        internal Task<List<DeviceGetInfoResult>> GetChildDevicesAsync(CancellationToken token) =>
+            WithRetryAsync(k => powerStripClient.GetChildDeviceListAsync(k), token);
 
         // A cached KLAP session (deviceKey) is now reused across many refresh cycles instead of being
         // rebuilt every ~10s (see PlugRegistryService/CLAUDE.md), so it can genuinely go stale mid-life
@@ -81,15 +119,23 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         }
 
         public async Task<bool> IsOnAsync(CancellationToken token = default) {
+            if (childDeviceId != null) {
+                var children = await WithRetryAsync(k => powerStripClient.GetChildDeviceListAsync(k), token);
+                return children.FirstOrDefault(c => c.DeviceId == childDeviceId)?.DeviceOn ?? false;
+            }
             var info = await WithRetryAsync(k => client.GetDeviceInfoAsync(k), token);
             return info.DeviceOn;
         }
 
         public Task TurnOnAsync(CancellationToken token = default) =>
-            WithRetryAsync(k => client.SetPowerAsync(k, true), token);
+            childDeviceId != null
+                ? WithRetryAsync(k => powerStripClient.SetChildPowerAsync(k, childDeviceId, true), token)
+                : WithRetryAsync(k => client.SetPowerAsync(k, true), token);
 
         public Task TurnOffAsync(CancellationToken token = default) =>
-            WithRetryAsync(k => client.SetPowerAsync(k, false), token);
+            childDeviceId != null
+                ? WithRetryAsync(k => powerStripClient.SetChildPowerAsync(k, childDeviceId, false), token)
+                : WithRetryAsync(k => client.SetPowerAsync(k, false), token);
 
         // No LED-related field found anywhere in DeviceGetInfoResult (the KLAP device-info DTO) as of
         // TapoConnect 3.2.4 - re-verify against the real P115/KP125M JSON once hardware is available,
@@ -102,7 +148,10 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         public Task<bool?> IsLedOnAsync(CancellationToken token = default) => Task.FromResult((bool?)null);
 
         public async Task<PlugPowerReading> GetPowerAsync(CancellationToken token = default) {
-            if (energyMonitoringSupported == false) {
+            // Individual outlets of a Tapo power strip don't meter their own consumption separately
+            // (only the whole strip would, if it supports energy monitoring at all) - unverified against
+            // real hardware, but consistent with how Kasa's own power strips (e.g. KP303) work.
+            if (childDeviceId != null || energyMonitoringSupported == false) {
                 return null;
             }
             try {

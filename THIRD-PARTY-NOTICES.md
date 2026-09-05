@@ -64,8 +64,13 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 No code from either project below is compiled into this plugin - neither is a dependency. They are
 credited here because `SmartPlugControlCloud/KasaCloudPassthroughClient.cs` was written with direct
 reference to their source to understand the TP-Link cloud passthrough protocol (see that file's own
-doc comment). This is the reason this plugin as a whole is licensed under GPL-3.0-only rather than a
-permissive license - see the repo's `CLAUDE.md` for the full reasoning.
+doc comment), and because `SmartPlugControlDrivers/PowerStripKlapDeviceClient.cs` was similarly
+written with direct reference to python-kasa's KLAP child-device commands
+(`kasa/smart/modules/childdevice.py`, `kasa/smart/smartchilddevice.py`,
+`kasa/protocols/smartprotocol.py`) to support Tapo multi-outlet power strips (e.g. the P300
+family/P316M), which TapoConnect itself has no support for. This is the reason this plugin as a whole
+is licensed under GPL-3.0-only rather than a permissive license - see the repo's `CLAUDE.md` for the
+full reasoning.
 
 - **piekstra/tplink-cloud-api** - https://github.com/piekstra/tplink-cloud-api - License: GPL-3.0
   (their own `LICENSE` file doesn't fill in the "or later version" clause, so it's ambiguous which

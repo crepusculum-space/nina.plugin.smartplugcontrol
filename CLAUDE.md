@@ -88,6 +88,8 @@ this site only; control is then routed per-device by protocol, not by any user-f
   (already a project dependency, reads `arp -a` - no ARP parsing was hand-rolled). A device whose MAC
   can't be resolved locally is **excluded entirely** from both `Plugs` and `AllPlugs` - not hidden,
   gone - since it isn't physically at this site.
+  **Update: this exclusion now applies only to `SMART.*`/KLAP devices, not `IOT.*`/legacy Kasa ones -
+  see the "Multi-tenant observatory VLAN limitation" section below for why.**
 - **Control routing** (`PlugRegistryService.RefreshAsync`, by `DeviceType` prefix):
   - `IOT.*` (legacy Kasa, e.g. HS103/KP303) → unchanged cloud-relay path
     (`KasaCloudPlugDriverFactory`/`KasaCloudPlugDriver`/`KasaCloudPassthroughClient`).
@@ -267,6 +269,94 @@ total draw.) Final design, arrived at through several rounds of back-and-forth:
   `RecomputeWattsFromAmps()`) - fully superseded by the per-plug equipment-page fields above.
 
 **Not started**: community-facing docs for adding other brands.
+
+## Tapo multi-outlet power strip support (P300 family/P316M) - implemented, NOT yet validated on real hardware
+
+Two real user reports surfaced this: a P316M user at home saw only one entry for the whole strip
+instead of each outlet, and a P300 user at a remote observatory saw nothing at all (a separate,
+network-topology issue - see the VLAN section below). Root cause for the multi-outlet symptom:
+`TapoConnect`'s `DeviceGetInfoResult` DTO has no children/child-device field of any kind - confirmed by
+reading it directly - so `KlapPlugDriver` always treated a KLAP-family device as exactly one outlet,
+correct for a real single-outlet plug (P115, KP125M) but wrong for a power strip.
+
+The real KLAP protocol *does* support child outlets (confirmed three ways: reading python-kasa's
+`kasa/smart/modules/childdevice.py`/`smartchilddevice.py`/`protocols/smartprotocol.py`; a real P300
+capture in python-kasa's own test fixtures, `tests/fixtures/smart/P300(EU)_*.json`; and the P316M user
+independently confirming success with `python-kasa`'s own CLI, using `--child`/`--child-index` against
+their real hardware) via two commands TapoConnect never implemented: `get_child_device_list` (returns
+`child_device_list`, an array where each entry has the exact same shape as a normal
+`DeviceGetInfoResult` - reused as-is) and `control_child` (wraps a normal single-device command, e.g.
+`set_device_info`, inside `{"control_child": {"device_id": "<child>", "requestData": {...}}}`, sent on
+the same already-established KLAP session as the parent - no extra per-child login).
+
+**License note**: python-kasa is GPL-3.0-or-later (confirmed by reading its `LICENSE` directly) -
+combining GPL-3.0-or-later code into this plugin's own GPL-3.0-only license costs nothing extra, since
+that relicense already happened for a different reason (see the GPL-3.0 relicense section below) -
+unlike the Rust `mihai-dinculescu/tapo` crate (MIT) considered earlier for this same problem, which
+would have needed language-porting effort with no shared code path.
+
+**Implementation** (all new, nothing existing was rewritten):
+- `SmartPlugControlDrivers/PowerStripKlapDeviceClient.cs` - subclasses TapoConnect's own
+  `KlapDeviceClient`, adding `GetChildDeviceListAsync`/`SetChildPowerAsync`. Built entirely on
+  TapoConnect's own `protected virtual KlapRequestAsync<TResponse>` (confirmed accessible from a
+  subclass in a different assembly) - the handshake/session/cipher are reused completely unchanged,
+  only the two new request/response DTOs are new (`ChildDeviceListResponse`/`ControlChildResponse`,
+  built from TapoConnect's own public `TapoRequest<T>`/`TapoResponse<T>`/`TapoSetBulbState`/
+  `DeviceGetInfoResult` types - no private/internal TapoConnect types were needed at all).
+- `KlapPlugDriver.cs` - gained an optional `childDeviceId` constructor parameter; when set, every
+  operation (`IsOnAsync`/`TurnOnAsync`/`TurnOffAsync`) is routed through the new child-aware calls
+  instead of the plain single-device ones. Per-child energy monitoring is assumed unsupported
+  (`GetPowerAsync` returns null for a child driver) since a power strip's outlets don't meter
+  themselves individually on Kasa's equivalent hardware (KP303) either - unverified against a real
+  Tapo strip.
+- `KlapPlugDriverFactory.cs` (new, mirrors the long-existing `KasaCloudPlugDriverFactory` for legacy
+  Kasa power strips) - probes every KLAP device once per refresh cycle via
+  `GetChildDeviceListAsync`; if it comes back empty, returns the single ordinary driver unchanged; if
+  not, returns one driver per child outlet (`PlugId` format `"{deviceId}:{childDeviceId}"`, matching
+  the legacy Kasa convention), all sharing the parent's already-established KLAP session
+  (`KlapPlugDriver.AdoptSessionFrom`) rather than logging in once per outlet.
+- `PlugRegistryService.RefreshAsync`'s KLAP branch now calls the factory and loops over however many
+  drivers it returns, mirroring the existing legacy-Kasa loop's per-driver try/catch (one outlet
+  erroring doesn't take down the rest of the strip).
+
+**What's genuinely unverified**: no P300-family hardware was available to test against - the two
+users mentioned above (P316M at home, P300 at a remote observatory) are the only realistic path to
+validating this before it ships. Don't advertise this as fixed anywhere user-facing (README, changelog,
+release notes) until at least one of them confirms it actually works.
+
+## Multi-tenant observatory VLAN limitation - a real, mostly-unfixable gap in the core premise
+
+A user pointed out something the whole "hybrid" architecture (see "Architecture history" above) never
+accounted for: a real commercial multi-tenant observatory typically gives each client's Ethernet-wired
+NINA PC its own isolated VLAN, while smart plugs sit on the site's own shared WiFi - a **different**
+VLAN. This showed up as a real bug report: a P300 user at exactly such a site saw nothing at all in
+the plug list, not even an error.
+
+**Root cause, confirmed by reading the code**: `LocalPresenceResolver.WarmArpCacheAsync` only ever
+pings addresses within *this PC's own interfaces' subnets* - it has no way to even attempt reaching a
+device on a different VLAN, regardless of whether routing between them would otherwise be possible.
+`PlugRegistryService.RefreshAsync` then excluded **every** device whose MAC couldn't be ARP-resolved
+this way - including legacy `IOT.*` (cloud-relay) devices, which never actually needed local
+reachability at all for control (only KLAP devices structurally need it, to know which IP to connect
+to).
+
+**What's fixable vs. not**:
+- **Legacy Kasa (`IOT.*`)**: fully fixable, and fixed - the local-presence requirement for these was
+  never a security boundary (TP-Link's own cloud login already guarantees the account boundary
+  regardless of network topology), just a convenience filter to avoid showing a device from a
+  *different* one of the user's own sites (e.g. home vs. observatory, same account). `RefreshAsync`'s
+  device loop now only applies the local-presence exclusion when `!usesLegacyProtocol` - legacy Kasa
+  devices are shown/controlled unconditionally, same as before this whole VLAN issue was discovered.
+  "Visible in NINA" remains the manual way to hide a genuinely-unrelated device, replacing what the
+  automatic ARP heuristic used to (unreliably) do for this case.
+- **KLAP (`SMART.*`, Tapo/newer Kasa)**: **not fixable in software** - these devices control directly
+  over the local network, so if the plug's VLAN and the PC's VLAN aren't the same broadcast domain (or
+  routed together, which the observatory's own network isolation is presumably specifically designed
+  to prevent), there is no IP this plugin could ever reach it at. This is a real, hard limitation of
+  the multi-tenant-with-per-client-VLANs deployment pattern specifically - the actual fix is
+  operational, not code: whoever runs the site needs to put a client's Tapo/newer-Kasa smart plugs on
+  that **same client's** VLAN, not a shared site-wide WiFi network. Not yet documented anywhere
+  user-facing (README) - should be, once the legacy-Kasa fix above is confirmed with real users.
 
 ## Settings page (Phase 7, done)
 
