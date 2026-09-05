@@ -30,7 +30,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
         public override bool Validate() {
             base.Validate();
             if (SelectedPlug != null && SelectedPlug.IsProtected) {
-                Issues.Add($"'{SelectedPlug.Alias}' is marked as protected - turning it off from the sequencer is blocked. Use the equipment page if you really need to.");
+                Issues.Add($"'{SelectedPlug.DisplayName}' is marked as protected - turning it off from the sequencer is blocked. Use the equipment page if you really need to.");
             }
             return Issues.Count == 0;
         }
@@ -38,7 +38,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlSequenceItems {
         public override async Task Execute(IProgress<ApplicationStatus> progress, CancellationToken token) {
             // Defense in depth - Validate() should already have kept this from running.
             if (SelectedPlug != null && SelectedPlug.IsProtected) {
-                throw new InvalidOperationException($"Refusing to turn off protected plug '{SelectedPlug.Alias}'.");
+                throw new InvalidOperationException($"Refusing to turn off protected plug '{SelectedPlug.DisplayName}'.");
             }
             await registry.TurnOffAsync(SelectedPlugId, token);
         }

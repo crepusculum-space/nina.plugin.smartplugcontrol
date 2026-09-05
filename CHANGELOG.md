@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.16] - 2026-09-06
+
+### Changed
+
+- Protected-plug confirmation and error messages (equipment page's two confirmations, the sequencer's
+  validation error and hard-block exception) now show the configured **Equipment** name (e.g. "Mount")
+  when set, instead of always showing the plug's raw TP-Link alias.
+
 ## [0.0.0.15] - 2026-09-06
 
 ### Changed

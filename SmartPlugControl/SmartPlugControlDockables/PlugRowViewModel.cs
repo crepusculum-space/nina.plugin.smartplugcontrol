@@ -37,6 +37,11 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
         public string Alias => model.Alias;
         public PlugBrand Brand => model.Brand;
 
+        /// <summary>Equipment name when set (e.g. "Mount"), otherwise the plug's own alias - see
+        /// PlugViewModel.DisplayName. Used anywhere a plug is named back to the user (e.g. the
+        /// protected-plug confirmations below).</summary>
+        public string DisplayName => model.DisplayName;
+
         public bool? IsOn => model.IsOn;
         public bool SupportsLed => model.SupportsLed;
         public bool? IsLedOn => model.IsLedOn;
@@ -169,7 +174,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
         /// <summary>Two separate confirmations, per the plugin's security requirements for protected plugs.</summary>
         private bool ConfirmProtectedShutdown() {
             var first = MyMessageBox.Show(
-                $"'{Alias}' is marked as protected equipment. Turn it off anyway?",
+                $"'{DisplayName}' is marked as protected equipment. Turn it off anyway?",
                 "Protected plug",
                 MessageBoxButton.YesNo,
                 MessageBoxResult.No);
@@ -178,7 +183,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
             }
 
             var second = MyMessageBox.Show(
-                $"This will cut power to '{Alias}'. Confirm again to proceed.",
+                $"This will cut power to '{DisplayName}'. Confirm again to proceed.",
                 "Confirm again",
                 MessageBoxButton.YesNo,
                 MessageBoxResult.No);
