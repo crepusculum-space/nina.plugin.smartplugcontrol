@@ -167,6 +167,61 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
 
             return response.Result.ResponseData.Result.CurrentPower;
         }
+
+        /// <summary>
+        /// Whole-device LED indicator (get_led_info/set_led_info) - not a power-strip-specific command,
+        /// but TapoConnect doesn't implement it at all (confirmed no LED field anywhere in
+        /// DeviceGetInfoResult), and no single-outlet device tested so far (P115, KP125M) turned out to
+        /// have this component, so it went unnoticed until a real P316M capture showed the whole strip
+        /// declaring a "led" component (see CLAUDE.md). Always targets the whole physical device, never
+        /// a specific child - confirmed no "led"-related component exists on any child device in that
+        /// same capture, matching the identical whole-device-only pattern already established for
+        /// legacy Kasa power strips (see KasaCloudPlugDriver).
+        /// </summary>
+        public async Task<LedInfoResult> GetLedInfoAsync(TapoDeviceKey deviceKey) {
+            if (deviceKey == null) {
+                throw new ArgumentNullException(nameof(deviceKey));
+            }
+
+            var protocol = deviceKey.ToProtocol<KlapDeviceKey>();
+
+            var request = new TapoRequest {
+                Method = "get_led_info",
+            };
+
+            var jsonRequest = JsonSerializer.Serialize(request);
+
+            var response = await KlapRequestAsync<LedInfoResponse>(jsonRequest, deviceKey.DeviceIp, deviceKey.SessionCookie, protocol.KlapChiper);
+
+            return response.Result;
+        }
+
+        /// <summary>
+        /// Ported from python-kasa's kasa/smart/modules/led.py: set_led_info is a read-modify-write
+        /// call - the device expects the *entire* previous get_led_info object echoed back with only
+        /// led_rule changed (a minimal partial update, e.g. just {"led_rule": ...}, is not how
+        /// python-kasa does it and wasn't tested against real hardware here, so this mirrors their
+        /// known-working approach instead of risking a narrower guess).
+        /// </summary>
+        public async Task SetLedRuleAsync(TapoDeviceKey deviceKey, bool on) {
+            if (deviceKey == null) {
+                throw new ArgumentNullException(nameof(deviceKey));
+            }
+
+            var protocol = deviceKey.ToProtocol<KlapDeviceKey>();
+
+            var current = await GetLedInfoAsync(deviceKey);
+            current.LedRule = on ? "always" : "never";
+
+            var request = new TapoRequest<LedInfoResult> {
+                Method = "set_led_info",
+                Params = current,
+            };
+
+            var jsonRequest = JsonSerializer.Serialize(request);
+
+            await KlapRequestAsync<TapoResponse>(jsonRequest, deviceKey.DeviceIp, deviceKey.SessionCookie, protocol.KlapChiper);
+        }
     }
 
     public class ChildDeviceListResponse : TapoResponse<ChildDeviceListResult> { }
@@ -213,5 +268,21 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
     public class GetCurrentPowerResult {
         [JsonPropertyName("current_power")]
         public float CurrentPower { get; set; }
+    }
+
+    public class LedInfoResponse : TapoResponse<LedInfoResult> { }
+
+    public class LedInfoResult {
+        [JsonPropertyName("led_rule")]
+        public string LedRule { get; set; } = null!;
+
+        [JsonPropertyName("led_status")]
+        public bool? LedStatus { get; set; }
+
+        // Echoed back verbatim on a write (see SetLedRuleAsync) - not modeled field-by-field since
+        // this plugin never needs to read/change night mode itself, only preserve whatever was already
+        // configured through the Tapo app.
+        [JsonPropertyName("night_mode")]
+        public JsonElement? NightMode { get; set; }
     }
 }

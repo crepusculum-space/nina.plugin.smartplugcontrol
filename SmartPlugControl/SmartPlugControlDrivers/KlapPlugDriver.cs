@@ -31,6 +31,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         private readonly string childDeviceId;
         private TapoDeviceKey deviceKey;
         private bool? energyMonitoringSupported;
+        private bool? ledSupported;
 
         public string PlugId { get; }
         public string Alias { get; }
@@ -137,15 +138,43 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
                 ? WithRetryAsync(k => powerStripClient.SetChildPowerAsync(k, childDeviceId, false), token)
                 : WithRetryAsync(k => client.SetPowerAsync(k, false), token);
 
-        // No LED-related field found anywhere in DeviceGetInfoResult (the KLAP device-info DTO) as of
-        // TapoConnect 3.2.4 - re-verify against the real P115/KP125M JSON once hardware is available,
-        // in case a field exists that this library doesn't surface.
-        public Task<bool> SupportsLedAsync(CancellationToken token = default) => Task.FromResult(false);
+        // Not every KLAP-family device has an LED component at all - confirmed no LED field of any
+        // kind on a real P115/KP125M (single-outlet devices) - but a real P316M capture showed the
+        // whole strip declaring one (no single-outlet device tested so far has had it, which is why
+        // this was originally assumed unsupported for all of KLAP). Always whole-device, never
+        // per-child, even for a driver representing one outlet of a strip - confirmed no LED-related
+        // component exists on any child device in that same capture, matching the identical
+        // whole-device-only pattern already established for legacy Kasa power strips (see
+        // KasaCloudPlugDriver) - childDeviceId is deliberately never used below.
+        public async Task<bool> SupportsLedAsync(CancellationToken token = default) {
+            if (ledSupported != null) {
+                return ledSupported.Value;
+            }
+            try {
+                await WithRetryAsync(k => powerStripClient.GetLedInfoAsync(k), token);
+                ledSupported = true;
+            } catch (TapoException) {
+                ledSupported = false;
+            }
+            return ledSupported.Value;
+        }
 
         public Task SetLedAsync(bool on, CancellationToken token = default) =>
-            throw new NotSupportedException("LED control is not supported for KLAP-protocol devices.");
+            WithRetryAsync(k => powerStripClient.SetLedRuleAsync(k, on), token);
 
-        public Task<bool?> IsLedOnAsync(CancellationToken token = default) => Task.FromResult((bool?)null);
+        public async Task<bool?> IsLedOnAsync(CancellationToken token = default) {
+            if (ledSupported == false) {
+                return null;
+            }
+            try {
+                var info = await WithRetryAsync(k => powerStripClient.GetLedInfoAsync(k), token);
+                ledSupported = true;
+                return info.LedRule != "never";
+            } catch (TapoException) {
+                ledSupported = false;
+                return null;
+            }
+        }
 
         public async Task<PlugPowerReading> GetPowerAsync(CancellationToken token = default) {
             if (energyMonitoringSupported == false) {

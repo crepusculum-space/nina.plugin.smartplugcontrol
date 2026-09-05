@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.11] - 2026-09-06
+
+### Added
+
+- **LED control for Tapo power strips that support it** (e.g. the P316M - confirmed on a real capture
+  that the whole strip declares an LED component, unlike single-outlet devices like the P115/KP125M,
+  which is why this was previously assumed unsupported for all KLAP devices). Like Kasa's legacy power
+  strips, this is a single whole-strip indicator, not one per outlet.
+
 ## [0.0.0.10] - 2026-09-06
 
 ### Fixed

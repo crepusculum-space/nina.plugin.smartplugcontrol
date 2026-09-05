@@ -242,6 +242,24 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                             continue;
                         }
 
+                        // LED state is a whole-device setting, not per-outlet - confirmed on a real
+                        // P316M capture (see CLAUDE.md) - so it's queried once per physical device here
+                        // instead of once per outlet driver, same as the legacy-Kasa branch below does.
+                        // Not every KLAP device has this component at all (single-outlet devices like
+                        // the P115/KP125M don't), so this is a real probe, not a hardcoded false.
+                        bool klapSupportsLed = false;
+                        bool? klapIsLedOn = null;
+                        if (klapDrivers.Count > 0) {
+                            try {
+                                klapSupportsLed = await klapDrivers[0].SupportsLedAsync(token);
+                                if (klapSupportsLed) {
+                                    klapIsLedOn = await klapDrivers[0].IsLedOnAsync(token);
+                                }
+                            } catch (Exception ex) {
+                                Logger.Error($"Failed to read LED state for '{device.Alias}' ({device.DeviceId})", ex);
+                            }
+                        }
+
                         foreach (var klapDriver in klapDrivers) {
                             var data = persisted.TryGetValue(klapDriver.PlugId, out var d) ? d : new PlugPersistedData { PlugId = klapDriver.PlugId };
 
@@ -263,7 +281,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                             }
 
                             newDrivers[klapDriver.PlugId] = klapDriver;
-                            newPlugs.Add(ToViewModel(device, klapDriver.PlugId, klapDriver.Alias, data, isOn, power, supportsLed: false, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)));
+                            newPlugs.Add(ToViewModel(device, klapDriver.PlugId, klapDriver.Alias, data, isOn, power, klapSupportsLed, klapIsLedOn, supportsPowerMonitoring: !knownPowerUnsupportedPlugIds.Contains(klapDriver.PlugId)));
                         }
                         continue;
                     }
