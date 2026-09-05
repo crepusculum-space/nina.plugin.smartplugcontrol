@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.10] - 2026-09-06
+
+### Fixed
+
+- **Per-outlet power monitoring on Tapo power strips could read a flat 0 W even under real load.**
+  `get_energy_usage`'s `current_power` field is omitted/unreliable on some outlets of this device
+  generation (confirmed in python-kasa's own source: "get_current_power is only a lower precision
+  fallback used by devices such as P304M whose get_energy_usage omits current_power" - the P304M and
+  P316M are the same generation). Now falls back to the separate `get_current_power` command when the
+  first reading comes back as 0.
+
 ## [0.0.0.9] - 2026-09-06
 
 ### Added

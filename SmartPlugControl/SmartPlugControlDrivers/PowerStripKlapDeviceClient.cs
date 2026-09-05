@@ -128,6 +128,45 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
 
             return response.Result.ResponseData.Result;
         }
+
+        /// <summary>
+        /// A separate, lower-precision real-time power reading - needed because some power-strip
+        /// outlets' get_energy_usage response omits current_power entirely (confirmed in python-kasa's
+        /// own kasa/smart/modules/energy.py: "get_current_power is only a lower precision fallback used
+        /// by devices such as P304M whose get_energy_usage omits current_power" - the P304M and P316M
+        /// are the same device generation). Unlike get_energy_usage's CurrentPower (already in
+        /// milliwatts), this one is in whole Watts directly.
+        /// </summary>
+        public async Task<float> GetChildCurrentPowerAsync(TapoDeviceKey deviceKey, string childDeviceId) {
+            if (deviceKey == null) {
+                throw new ArgumentNullException(nameof(deviceKey));
+            }
+            if (string.IsNullOrEmpty(childDeviceId)) {
+                throw new ArgumentNullException(nameof(childDeviceId));
+            }
+
+            var protocol = deviceKey.ToProtocol<KlapDeviceKey>();
+
+            var innerRequest = new TapoRequest {
+                Method = "get_current_power",
+            };
+
+            var request = new TapoRequest<ControlChildParams> {
+                Method = "control_child",
+                Params = new ControlChildParams {
+                    DeviceId = childDeviceId,
+                    RequestData = innerRequest,
+                },
+            };
+
+            var jsonRequest = JsonSerializer.Serialize(request);
+
+            var response = await KlapRequestAsync<ControlChildCurrentPowerResponse>(jsonRequest, deviceKey.DeviceIp, deviceKey.SessionCookie, protocol.KlapChiper);
+
+            TapoException.ThrowFromErrorCode(response.Result.ResponseData.ErrorCode);
+
+            return response.Result.ResponseData.Result.CurrentPower;
+        }
     }
 
     public class ChildDeviceListResponse : TapoResponse<ChildDeviceListResult> { }
@@ -160,5 +199,19 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         // envelope's responseData has exactly the same {error_code, result} shape as a normal response.
         [JsonPropertyName("responseData")]
         public DeviceGetEnergyUsageResponse ResponseData { get; set; } = null!;
+    }
+
+    public class ControlChildCurrentPowerResponse : TapoResponse<ControlChildCurrentPowerResult> { }
+
+    public class ControlChildCurrentPowerResult {
+        [JsonPropertyName("responseData")]
+        public GetCurrentPowerResponse ResponseData { get; set; } = null!;
+    }
+
+    public class GetCurrentPowerResponse : TapoResponse<GetCurrentPowerResult> { }
+
+    public class GetCurrentPowerResult {
+        [JsonPropertyName("current_power")]
+        public float CurrentPower { get; set; }
     }
 }

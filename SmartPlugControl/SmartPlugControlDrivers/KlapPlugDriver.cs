@@ -159,12 +159,32 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
                 // separately (each declares its own "energy_monitoring" component), so assuming
                 // otherwise here would have been wrong for that model, even though it holds for the
                 // base P300 (no energy capability at all, at either the strip or outlet level).
-                var usage = childDeviceId != null
-                    ? await WithRetryAsync(k => powerStripClient.GetChildEnergyUsageAsync(k, childDeviceId), token)
-                    : await WithRetryAsync(k => client.GetEnergyUsageAsync(k), token);
+                double watts;
+                if (childDeviceId != null) {
+                    var usage = await WithRetryAsync(k => powerStripClient.GetChildEnergyUsageAsync(k, childDeviceId), token);
+                    watts = usage.CurrentPower / 1000.0;
+                    if (watts == 0) {
+                        // get_energy_usage's current_power is known to be omitted/unreliable on some
+                        // power-strip outlets of this generation - confirmed in python-kasa's own
+                        // energy.py: "get_current_power is only a lower precision fallback used by
+                        // devices such as P304M whose get_energy_usage omits current_power" (the P304M
+                        // and P316M are the same device generation). Fall back to that separate command
+                        // (already in whole Watts, no /1000 needed) rather than reporting a flat 0 that
+                        // doesn't reflect the real load.
+                        try {
+                            watts = await WithRetryAsync(k => powerStripClient.GetChildCurrentPowerAsync(k, childDeviceId), token);
+                        } catch (TapoException) {
+                            // Leave watts at 0 from the get_energy_usage reading - this fallback isn't
+                            // supported on this outlet either.
+                        }
+                    }
+                } else {
+                    var usage = await WithRetryAsync(k => client.GetEnergyUsageAsync(k), token);
+                    watts = usage.CurrentPower / 1000.0;
+                }
                 energyMonitoringSupported = true;
                 return new PlugPowerReading {
-                    Watts = usage.CurrentPower / 1000.0,
+                    Watts = watts,
                     Volts = 0,
                     Amps = 0
                 };
