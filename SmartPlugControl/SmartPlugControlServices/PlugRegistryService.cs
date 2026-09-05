@@ -469,18 +469,23 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         public Task SetLedAsync(string plugId, bool on, CancellationToken token = default) =>
             GetDriverOrThrow(plugId).SetLedAsync(on, token);
 
-        // A real P316M went completely unreachable (a plain network timeout, not a protocol-level
-        // rejection) after switching several of its outlets on back-to-back with no gap - consistent
-        // with the strip's own WiFi module browning out/restarting under the combined load of several
-        // relays actuating almost simultaneously (each outlet already reuses one shared KLAP session,
-        // never logs in per outlet, so this isn't a login storm). A short pause between consecutive
-        // commands against outlets of the same physical strip gives the strip's own hardware time to
-        // settle between relay actuations. Configurable (Options page) rather than a fixed constant -
-        // the right value depends on the specific hardware/electrical load, so users can find their own
-        // "sweet spot" instead of being stuck with one guessed default. Read fresh every call, same
-        // pattern as RefreshIntervalSeconds, so a change takes effect without restarting NINA.
+        // A real P316M (KLAP) went completely unreachable (a plain network timeout, not a
+        // protocol-level rejection) after switching several of its outlets on back-to-back with no gap
+        // - consistent with the strip's own WiFi module browning out/restarting under the combined
+        // load of several relays actuating almost simultaneously (each KLAP outlet already reuses one
+        // shared session, never logs in per outlet, so this isn't a login storm). Applied to legacy
+        // Kasa power strips (e.g. the KP303) too, not just KLAP - the underlying concern (several
+        // physical relays actuating in quick succession) isn't protocol-specific, and there's no reason
+        // to assume older/cheaper hardware is less susceptible. Detected via PlugId rather than driver
+        // type, since both KasaCloudPlugDriverFactory and KlapPlugDriverFactory independently use the
+        // same "{deviceId}:{childId}" convention for a power-strip outlet's PlugId - a single check
+        // that works for either brand instead of duplicating it per driver type.
+        // Configurable (Options page) rather than a fixed constant - the right value depends on the
+        // specific hardware/electrical load, so users can find their own "sweet spot" instead of being
+        // stuck with one guessed default. Read fresh every call, same pattern as RefreshIntervalSeconds,
+        // so a change takes effect without restarting NINA.
         private static async Task DelayIfPowerStripChildAsync(IPlugDriver driver, CancellationToken token) {
-            if (driver is KlapPlugDriver klapDriver && klapDriver.IsPowerStripChild) {
+            if (driver.PlugId.Contains(':')) {
                 int delayMs = Math.Max(0, Settings.Default.PowerStripCommandDelayMs);
                 if (delayMs > 0) {
                     await Task.Delay(delayMs, token);

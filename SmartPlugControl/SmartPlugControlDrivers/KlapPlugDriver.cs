@@ -39,17 +39,6 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         /// <summary>Exposed so PlugRegistryService can tell whether a device's resolved local IP changed since a cached driver was built for it.</summary>
         public string DeviceIp => deviceIp;
 
-        /// <summary>
-        /// Exposed so PlugRegistryService's bulk actions can space out consecutive commands against
-        /// outlets on the same physical power strip - confirmed on a real P316M that switching several
-        /// relays back-to-back with no gap made the whole strip go unreachable (a plain network
-        /// timeout, not a protocol-level rejection - consistent with the strip's own WiFi module
-        /// browning out/restarting under the load of several relays actuating almost simultaneously,
-        /// not a KLAP session problem - each outlet already reuses one shared session, never logs in
-        /// per outlet, so this isn't a login storm).
-        /// </summary>
-        public bool IsPowerStripChild => childDeviceId != null;
-
         /// <param name="childDeviceId">
         /// Null for a single-outlet device (the common case). For one outlet of a multi-outlet power
         /// strip, the child's own device_id (from get_child_device_list) - every operation is then

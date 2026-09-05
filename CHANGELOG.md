@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.15] - 2026-09-06
+
+### Changed
+
+- The configurable delay between per-outlet commands during a bulk action (added in 0.0.0.14) now
+  also applies to legacy Kasa power strips (e.g. the KP303), not just Tapo/newer-Kasa (KLAP) ones -
+  the underlying concern (several physical relays actuating in quick succession) isn't
+  protocol-specific. Confirmed fixed on a real P316M.
+
 ## [0.0.0.14] - 2026-09-06
 
 ### Fixed
