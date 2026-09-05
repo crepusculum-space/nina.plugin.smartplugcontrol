@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.13] - 2026-09-06
+
+### Fixed
+
+- **Non-plug devices tied to the same TP-Link account (e.g. an Archer-series WiFi router) could show
+  up in the plug list and be attempted as controllable plugs.** A TP-Link account's "get device list"
+  call returns every device across TP-Link's whole ecosystem, not just Kasa/Tapo smart plugs. Now
+  filtered to devices whose `DeviceType` actually indicates a plug/power strip.
+
 ## [0.0.0.12] - 2026-09-06
 
 ### Fixed

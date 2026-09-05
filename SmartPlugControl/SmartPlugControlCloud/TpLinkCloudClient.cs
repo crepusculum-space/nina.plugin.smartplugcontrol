@@ -50,6 +50,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
             token.ThrowIfCancellationRequested();
 
             return devices.DeviceList
+                .Where(d => IsSmartPlugDevice(d.DeviceType))
                 .Select(d => new CloudPlugDeviceInfo {
                     DeviceId = d.DeviceId,
                     Alias = DecodeAliasIfNeeded(d),
@@ -62,6 +63,21 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlCloud {
                 })
                 .ToList();
         }
+
+        // A single TP-Link ID's "get device list" call returns every device tied to the account
+        // across TP-Link's whole ecosystem, not just Kasa/Tapo smart plugs - confirmed by a real user
+        // report where an Archer-series WiFi router and other non-plug devices showed up in the plug
+        // list, attempted (nonsensically) as controllable plugs. Real observed DeviceType values for
+        // actual plugs/strips are "IOT.SMARTPLUGSWITCH" (legacy Kasa), "SMART.TAPOPLUG",
+        // "SMART.KASAPLUG" (KLAP-family Tapo/newer Kasa) - all containing "PLUG"; a router/camera/hub/
+        // bulb/etc. reports a different DeviceType instead (e.g. routers aren't part of the Kasa/Tapo
+        // device model at all, and were seemingly only returned here as a shared-account side effect).
+        // Allowlisting by a "PLUG" substring rather than trying to blocklist every non-plug type by
+        // name is deliberately conservative - a real plug always has "PLUG" in its own DeviceType,
+        // TP-Link's own naming convention for the category, so this shouldn't need updating even for
+        // plug models this plugin hasn't been tested against yet.
+        private static bool IsSmartPlugDevice(string deviceType) =>
+            deviceType != null && deviceType.IndexOf("PLUG", StringComparison.OrdinalIgnoreCase) >= 0;
 
         // TP-Link base64-encodes the Alias for every device in the newer "SMART.*" protocol family
         // (confirmed on a real Kasa KP125M, DeviceType "SMART.KASAPLUG"), not just Tapo. TapoConnect's
