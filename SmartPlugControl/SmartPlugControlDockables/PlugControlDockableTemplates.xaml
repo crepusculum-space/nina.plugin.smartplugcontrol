@@ -50,11 +50,16 @@
                     <DataGridTemplateColumn Header="On/Off" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <CheckBox
-                                    IsThreeState="True"
-                                    IsChecked="{Binding IsOn, Mode=OneWay}"
-                                    Command="{Binding ToggleOnOffCommand}"
-                                    HorizontalAlignment="Center" />
+                                <Grid HorizontalAlignment="Center">
+                                    <CheckBox
+                                        IsThreeState="False"
+                                        IsChecked="{Binding IsOn, Mode=OneWay}"
+                                        Command="{Binding ToggleOnOffCommand}"
+                                        Visibility="{Binding IsStateKnown, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <TextBlock
+                                        Text="Off Line"
+                                        Visibility="{Binding IsOffline, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </Grid>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

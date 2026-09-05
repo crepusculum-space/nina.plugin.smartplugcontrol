@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.12] - 2026-09-06
+
+### Fixed
+
+- **A KLAP-family plug (Tapo/newer-Kasa) that went unreachable mid-session (unplugged, a stale ARP
+  entry pointing nowhere, etc.) could disappear from the equipment page entirely instead of showing an
+  unknown state**, and the "unknown" state itself was visually indistinguishable from a normal "off"
+  plug when it did show (NINA's shared CheckBox theme renders the indeterminate state identically to
+  unchecked). An offline/unreachable plug's On/Off switch is now replaced with an "Off Line" label.
+- **"Turn All Plugs On/Off" and "All LEDs On/Off" attempted to control offline/unreachable plugs too**,
+  which briefly showed them as toggled in the equipment page's optimistic UI update before the next
+  refresh flipped them back - all four bulk actions (and their optimistic UI updates) now skip any
+  plug with an unknown/offline state.
+
 ## [0.0.0.11] - 2026-09-06
 
 ### Added

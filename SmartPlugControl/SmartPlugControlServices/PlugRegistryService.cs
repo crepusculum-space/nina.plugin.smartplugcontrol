@@ -203,25 +203,36 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                     bool usesLegacyProtocol = device.DeviceType != null && device.DeviceType.StartsWith("IOT.", StringComparison.OrdinalIgnoreCase);
 
                     // Local presence only matters for KLAP devices, which control directly over the local
-                    // network and simply cannot function without a locally-resolved IP - excluded
-                    // entirely here, same as before (rather than shown as "known but uncontrollable").
-                    // Legacy Kasa devices control exclusively through the cloud relay, which never needed
-                    // local reachability at all - TP-Link's own login already guarantees the account
-                    // boundary regardless of network topology. Requiring local presence for them too was
-                    // really an unrelated convenience filter (avoid showing a device from a different one
-                    // of the user's own sites, e.g. a home plug on the same account as an observatory
-                    // instance) - and it silently broke real multi-tenant observatories that isolate each
-                    // client's Ethernet VLAN from the shared WiFi VLAN their smart plugs sit on: the plug
-                    // is genuinely at the site, just unreachable via ARP from this specific VLAN.
-                    // Confirmed by a real user report - a legacy-protocol-adjacent device in that exact
-                    // topology showed up as nothing at all. "Visible in NINA" remains the manual way to
-                    // hide a truly unrelated device, rather than an automatic-but-unreliable network
-                    // heuristic that only ever worked by accident on a single flat network.
-                    if (!usesLegacyProtocol && resolved != true) {
-                        continue;
-                    }
-
+                    // network and simply cannot function without a locally-resolved IP. Legacy Kasa
+                    // devices control exclusively through the cloud relay, which never needed local
+                    // reachability at all - TP-Link's own login already guarantees the account boundary
+                    // regardless of network topology. Requiring local presence for them too was really an
+                    // unrelated convenience filter (avoid showing a device from a different one of the
+                    // user's own sites, e.g. a home plug on the same account as an observatory instance) -
+                    // and it silently broke real multi-tenant observatories that isolate each client's
+                    // Ethernet VLAN from the shared WiFi VLAN their smart plugs sit on: the plug is
+                    // genuinely at the site, just unreachable via ARP from this specific VLAN. "Visible in
+                    // NINA" remains the manual way to hide a truly unrelated device, rather than an
+                    // automatic-but-unreliable network heuristic that only ever worked by accident on a
+                    // single flat network.
                     if (!usesLegacyProtocol) {
+                        // A KLAP device unreachable/unauthenticatable this cycle (local presence failed,
+                        // a wrong-case TP-Link username, "Third-Party Compatibility" disabled in the Tapo
+                        // app, a genuinely different network segment, etc.) still shows up here - known
+                        // to the account but not currently controllable - mirroring how a legacy Kasa
+                        // cloud-relay failure below also still shows the device with an unknown state
+                        // instead of disappearing. Confirmed by a real report: a Tapo P300 vanished
+                        // completely with zero diagnostic trace (the local-presence check used to just
+                        // `continue` here, silently, with no log entry at all) - the user had no way to
+                        // tell "not on this account" apart from "on the account but unreachable right
+                        // now." A genuine KLAP failure (as opposed to unresolved presence) still logs the
+                        // underlying exception below, so the actual cause remains diagnosable.
+                        if (resolved != true) {
+                            var unresolvedData = persisted.TryGetValue(device.DeviceId, out var ud) ? ud : new PlugPersistedData { PlugId = device.DeviceId };
+                            newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, unresolvedData, isOn: null, power: null, supportsLed: false, supportsPowerMonitoring: false));
+                            continue;
+                        }
+
                         // Reuses cached driver instances (and their KLAP login sessions) across refresh
                         // cycles instead of building fresh ones every time - see CLAUDE.md on why that
                         // matters (hammering a device's own local authentication every poll cycle caused
@@ -233,12 +244,14 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                         try {
                             klapDrivers = await KlapPlugDriverFactory.CreateAsync(device.DeviceId, device.Alias, deviceIp, username, password, driversByPlugId, token);
                         } catch (Exception ex) {
-                            // Most likely: this device was actually paired under a different TP-Link
-                            // account than the one configured in Options (shouldn't normally happen,
-                            // since cloud discovery only returns this account's own devices - but this is
-                            // the safety net that would catch it, and it's also the graceful failure path
-                            // for a simply-offline device).
+                            // Most likely causes: a wrong-case TP-Link username (KLAP's handshake is
+                            // case-sensitive - see CLAUDE.md), "Third-Party Compatibility" disabled in
+                            // the Tapo app, or this device actually paired under a different TP-Link
+                            // account than the one configured in Options. Still shown with an unknown
+                            // state (see above) rather than disappearing entirely.
                             Logger.Error($"Failed to log in to or read state from KLAP device '{device.Alias}' ({device.DeviceId}) at {deviceIp}", ex);
+                            var failedData = persisted.TryGetValue(device.DeviceId, out var fd) ? fd : new PlugPersistedData { PlugId = device.DeviceId };
+                            newPlugs.Add(ToViewModel(device, device.DeviceId, device.Alias, failedData, isOn: null, power: null, supportsLed: false, supportsPowerMonitoring: false));
                             continue;
                         }
 
@@ -275,9 +288,13 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
                                 }
                             } catch (Exception ex) {
                                 // One outlet on a power strip going offline/erroring shouldn't take the
-                                // rest of the strip's outlets down with it.
+                                // rest of the strip's outlets down with it - and this outlet itself
+                                // should still show up with an unknown state (isOn/power already null
+                                // here) rather than disappearing, same reasoning as the "unresolved"/
+                                // "driver creation failed" fallbacks above (a device that was reachable
+                                // moments ago - e.g. a stale ARP entry for a device just unplugged - can
+                                // still fail here after a driver was already successfully built for it).
                                 Logger.Error($"Failed to read state from KLAP device '{klapDriver.Alias}' ({klapDriver.PlugId}) at {deviceIp}", ex);
-                                continue;
                             }
 
                             newDrivers[klapDriver.PlugId] = klapDriver;
@@ -455,10 +472,16 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         // These bulk actions deliberately iterate `plugs` (visible only), not every discovered device
         // on the TP-Link account (`allPlugs`/`driversByPlugId`) - the account may include plugs
         // unrelated to the observatory (e.g. a home TV/printer) that the user has hidden precisely so
-        // "Turn On/Off All" never touches them.
+        // "Turn On/Off All" never touches them. They also skip any plug whose last known state is
+        // unknown (IsOn == null) - a plug the last refresh couldn't reach at all (offline, unplugged, a
+        // stale ARP entry pointing nowhere) - since attempting a live command against it would just fail
+        // anyway, and doing so used to make the equipment page's optimistic UI update
+        // (PlugControlDockableVM marks every row "on" immediately after a successful bulk call) mark an
+        // actually-offline plug as on too, only for the next refresh to flip it back to unknown/off -
+        // confusing without ever having actually turned anything on.
         public async Task TurnOnAllAsync(CancellationToken token = default) {
-            foreach (var plugId in plugs.Select(p => p.PlugId)) {
-                if (!driversByPlugId.TryGetValue(plugId, out var driver)) {
+            foreach (var plug in plugs.Where(p => p.IsOn != null)) {
+                if (!driversByPlugId.TryGetValue(plug.PlugId, out var driver)) {
                     continue;
                 }
                 token.ThrowIfCancellationRequested();
@@ -467,7 +490,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         }
 
         public async Task TurnOffAllAsync(CancellationToken token = default) {
-            foreach (var plug in plugs) {
+            foreach (var plug in plugs.Where(p => p.IsOn != null)) {
                 if (plug.IsProtected || !driversByPlugId.TryGetValue(plug.PlugId, out var driver)) {
                     continue;
                 }
@@ -477,7 +500,7 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlServices {
         }
 
         public async Task SetAllLedsAsync(bool on, CancellationToken token = default) {
-            foreach (var plugId in plugs.Select(p => p.PlugId)) {
+            foreach (var plugId in plugs.Where(p => p.IsOn != null).Select(p => p.PlugId)) {
                 if (!driversByPlugId.TryGetValue(plugId, out var driver)) {
                     continue;
                 }

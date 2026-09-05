@@ -56,29 +56,30 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
             // instead of waiting for the next poll tick to pick up the change - matches what
             // PlugRowViewModel.ToggleOnOffAsync/ToggleLedAsync already do for a single plug. Mirrors
             // the registry's own skip rules (TurnOffAllAsync skips protected plugs; LED actions only
-            // apply to plugs that actually support LED control) so the optimistic UI update never
-            // shows a state the registry didn't actually set.
+            // apply to plugs that actually support LED control; offline/unreachable plugs - IsStateKnown
+            // false - are skipped by the registry too since a live command against one would just fail)
+            // so the optimistic UI update never shows a state the registry didn't actually set.
             TurnOnAllCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
                 await registry.TurnOnAllAsync(t);
-                foreach (var row in Plugs) {
+                foreach (var row in Plugs.Where(p => p.IsStateKnown)) {
                     row.SetIsOnLocally(true);
                 }
             }, "turn on all plugs"));
             TurnOffAllCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
                 await registry.TurnOffAllAsync(t);
-                foreach (var row in Plugs.Where(p => !p.IsProtected)) {
+                foreach (var row in Plugs.Where(p => !p.IsProtected && p.IsStateKnown)) {
                     row.SetIsOnLocally(false);
                 }
             }, "turn off all plugs"));
             LedsOnCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
                 await registry.SetAllLedsAsync(true, t);
-                foreach (var row in Plugs.Where(p => p.SupportsLed)) {
+                foreach (var row in Plugs.Where(p => p.SupportsLed && p.IsStateKnown)) {
                     row.SetIsLedOnLocally(true);
                 }
             }, "turn on all LEDs"));
             LedsOffCommand = new AsyncRelayCommand(() => RunGlobalActionAsync(async t => {
                 await registry.SetAllLedsAsync(false, t);
-                foreach (var row in Plugs.Where(p => p.SupportsLed)) {
+                foreach (var row in Plugs.Where(p => p.SupportsLed && p.IsStateKnown)) {
                     row.SetIsLedOnLocally(false);
                 }
             }, "turn off all LEDs"));

@@ -42,6 +42,14 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDockables {
         public bool? IsLedOn => model.IsLedOn;
         public bool IsProtected => model.IsProtected;
 
+        // NINA's shared CheckBox theme renders IsChecked=null (IsThreeState's "indeterminate" state)
+        // identically to an unchecked/off box - confirmed on real hardware, a plug the registry can't
+        // currently reach (isOn: null) looked exactly like a normal, confirmed-off plug, with no visual
+        // difference at all. The template swaps the switch for a plain "Off Line" label instead of
+        // relying on an indeterminate CheckBox visual that isn't actually distinguishable.
+        public bool IsStateKnown => IsOn != null;
+        public bool IsOffline => !IsStateKnown;
+
         public bool HasPower => model.LastPower != null;
         public double? Watts => model.LastPower?.Watts;
 
