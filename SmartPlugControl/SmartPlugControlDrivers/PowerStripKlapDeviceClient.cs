@@ -88,6 +88,46 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
             // to know about since it's specific to this control_child shape, so it's checked explicitly.
             TapoException.ThrowFromErrorCode(response.Result.ResponseData.ErrorCode);
         }
+
+        /// <summary>
+        /// Per-outlet consumption, for power strip models that support it (confirmed on a real P316M
+        /// capture in python-kasa's own test fixtures - each child declares its own "energy_monitoring"
+        /// component, separate from the same capability at the whole-strip level; the base P300 has no
+        /// energy capability at all, at either level). Throws (via TapoException.ThrowFromErrorCode) if
+        /// this particular outlet doesn't support it - callers should treat that the same as any other
+        /// KLAP device without an energy meter (KlapPlugDriver already does, for the plain single-device
+        /// case).
+        /// </summary>
+        public async Task<DeviceGetEnergyUsageResult> GetChildEnergyUsageAsync(TapoDeviceKey deviceKey, string childDeviceId) {
+            if (deviceKey == null) {
+                throw new ArgumentNullException(nameof(deviceKey));
+            }
+            if (string.IsNullOrEmpty(childDeviceId)) {
+                throw new ArgumentNullException(nameof(childDeviceId));
+            }
+
+            var protocol = deviceKey.ToProtocol<KlapDeviceKey>();
+
+            var innerRequest = new TapoRequest {
+                Method = "get_energy_usage",
+            };
+
+            var request = new TapoRequest<ControlChildParams> {
+                Method = "control_child",
+                Params = new ControlChildParams {
+                    DeviceId = childDeviceId,
+                    RequestData = innerRequest,
+                },
+            };
+
+            var jsonRequest = JsonSerializer.Serialize(request);
+
+            var response = await KlapRequestAsync<ControlChildEnergyResponse>(jsonRequest, deviceKey.DeviceIp, deviceKey.SessionCookie, protocol.KlapChiper);
+
+            TapoException.ThrowFromErrorCode(response.Result.ResponseData.ErrorCode);
+
+            return response.Result.ResponseData.Result;
+        }
     }
 
     public class ChildDeviceListResponse : TapoResponse<ChildDeviceListResult> { }
@@ -110,5 +150,15 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
     public class ControlChildResult {
         [JsonPropertyName("responseData")]
         public TapoResponse ResponseData { get; set; } = null!;
+    }
+
+    public class ControlChildEnergyResponse : TapoResponse<ControlChildEnergyResult> { }
+
+    public class ControlChildEnergyResult {
+        // DeviceGetEnergyUsageResponse is TapoConnect's own existing concrete DTO for the plain
+        // (non-control_child) get_energy_usage response - reused as-is, since a control_child
+        // envelope's responseData has exactly the same {error_code, result} shape as a normal response.
+        [JsonPropertyName("responseData")]
+        public DeviceGetEnergyUsageResponse ResponseData { get; set; } = null!;
     }
 }

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.9] - 2026-09-06
+
+### Added
+
+- **Per-outlet power monitoring for Tapo multi-outlet power strips that support it** (confirmed on a
+  real P316M capture that individual outlets can meter their own consumption separately from the whole
+  strip). Previously a power-strip outlet's consumption never showed up at all - now it's attempted the
+  same way as any other plug, falling back gracefully (no reading shown) on outlets/models that don't
+  support it (e.g. the base P300).
+
 ## [0.0.0.8] - 2026-09-05
 
 ### Added

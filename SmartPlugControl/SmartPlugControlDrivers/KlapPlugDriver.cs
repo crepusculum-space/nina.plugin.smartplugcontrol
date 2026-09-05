@@ -148,14 +148,20 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
         public Task<bool?> IsLedOnAsync(CancellationToken token = default) => Task.FromResult((bool?)null);
 
         public async Task<PlugPowerReading> GetPowerAsync(CancellationToken token = default) {
-            // Individual outlets of a Tapo power strip don't meter their own consumption separately
-            // (only the whole strip would, if it supports energy monitoring at all) - unverified against
-            // real hardware, but consistent with how Kasa's own power strips (e.g. KP303) work.
-            if (childDeviceId != null || energyMonitoringSupported == false) {
+            if (energyMonitoringSupported == false) {
                 return null;
             }
             try {
-                var usage = await WithRetryAsync(k => client.GetEnergyUsageAsync(k), token);
+                // Always attempt a reading, per-outlet if this is a child driver, exactly like
+                // KasaCloudPlugDriver already does for legacy Kasa (GetRealtimeEnergyAsync is called
+                // with childId regardless of whether the device turns out to support it) - confirmed on
+                // a real P316M capture that individual outlets can meter their own consumption
+                // separately (each declares its own "energy_monitoring" component), so assuming
+                // otherwise here would have been wrong for that model, even though it holds for the
+                // base P300 (no energy capability at all, at either the strip or outlet level).
+                var usage = childDeviceId != null
+                    ? await WithRetryAsync(k => powerStripClient.GetChildEnergyUsageAsync(k, childDeviceId), token)
+                    : await WithRetryAsync(k => client.GetEnergyUsageAsync(k), token);
                 energyMonitoringSupported = true;
                 return new PlugPowerReading {
                     Watts = usage.CurrentPower / 1000.0,
@@ -163,7 +169,8 @@ namespace Crepusculum.NINA.SmartPlugControl.SmartPlugControlDrivers {
                     Amps = 0
                 };
             } catch (TapoException) {
-                // Not every KLAP-family model has an energy meter (e.g. the P115 does, some others don't).
+                // Not every KLAP-family model/outlet has an energy meter (e.g. the P115 does, some
+                // others don't, and the base P300's outlets don't either).
                 energyMonitoringSupported = false;
                 return null;
             }
