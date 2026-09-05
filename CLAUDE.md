@@ -270,7 +270,7 @@ total draw.) Final design, arrived at through several rounds of back-and-forth:
 
 **Not started**: community-facing docs for adding other brands.
 
-## Tapo multi-outlet power strip support (P300 family/P316M) - implemented, NOT yet validated on real hardware
+## Tapo multi-outlet power strip support (P300 family/P316M) - implemented and verified on real hardware
 
 Two real user reports surfaced this: a P316M user at home saw only one entry for the whole strip
 instead of each outlet, and a P300 user at a remote observatory saw nothing at all (a separate,
@@ -304,11 +304,27 @@ would have needed language-porting effort with no shared code path.
   built from TapoConnect's own public `TapoRequest<T>`/`TapoResponse<T>`/`TapoSetBulbState`/
   `DeviceGetInfoResult` types - no private/internal TapoConnect types were needed at all).
 - `KlapPlugDriver.cs` - gained an optional `childDeviceId` constructor parameter; when set, every
-  operation (`IsOnAsync`/`TurnOnAsync`/`TurnOffAsync`) is routed through the new child-aware calls
-  instead of the plain single-device ones. Per-child energy monitoring is assumed unsupported
-  (`GetPowerAsync` returns null for a child driver) since a power strip's outlets don't meter
-  themselves individually on Kasa's equivalent hardware (KP303) either - unverified against a real
-  Tapo strip.
+  operation (`IsOnAsync`/`TurnOnAsync`/`TurnOffAsync`/`GetPowerAsync`) is routed through the new
+  child-aware calls instead of the plain single-device ones. The initial version assumed per-child
+  energy monitoring was unsupported (by analogy with Kasa's KP303, whose sockets don't meter
+  themselves individually) - this was wrong and got corrected twice based on real hardware:
+  1. A real P316M capture in python-kasa's own test fixtures showed each child declaring its own
+     "energy_monitoring" component, separate from the same capability at the whole-strip level - so
+     `GetChildEnergyUsageAsync` was added and attempted per child, matching what
+     `KasaCloudPlugDriver` already does for legacy Kasa (it always attempts a per-child reading too,
+     regardless of whether the specific model turns out to support it).
+  2. That alone still read a flat 0 W under real load on the user's P316M. Root cause (confirmed in
+     python-kasa's own `energy.py` source): `get_energy_usage`'s `current_power` field is
+     omitted/unreliable on some outlets of this device generation - their own comment names "devices
+     such as P304M" (same generation as the P316M) explicitly. Fixed by adding
+     `GetChildCurrentPowerAsync` (wraps the separate `get_current_power` command) as a fallback
+     whenever the first reading comes back as 0 - `KlapPlugDriver.GetPowerAsync` now tries
+     `get_energy_usage` first and only falls back to `get_current_power` if needed, mirroring
+     python-kasa's own preference order (documented in that file as: prefer `get_emeter_data`, then
+     `get_energy_usage`, then `get_current_power` - this plugin only needed the latter two since
+     `get_emeter_data` wasn't necessary to make the P316M report correctly).
+  The base P300 has no energy capability at all, at either the strip or outlet level, per its own
+  test fixture (no `get_energy_usage`/`get_current_power`/etc. keys present) - unlike the P316M.
 - `KlapPlugDriverFactory.cs` (new, mirrors the long-existing `KasaCloudPlugDriverFactory` for legacy
   Kasa power strips) - probes every KLAP device once per refresh cycle via
   `GetChildDeviceListAsync`; if it comes back empty, returns the single ordinary driver unchanged; if
@@ -319,10 +335,15 @@ would have needed language-porting effort with no shared code path.
   drivers it returns, mirroring the existing legacy-Kasa loop's per-driver try/catch (one outlet
   erroring doesn't take down the rest of the strip).
 
-**What's genuinely unverified**: no P300-family hardware was available to test against - the two
-users mentioned above (P316M at home, P300 at a remote observatory) are the only realistic path to
-validating this before it ships. Don't advertise this as fixed anywhere user-facing (README, changelog,
-release notes) until at least one of them confirms it actually works.
+**Verified against real hardware (2026-09-06)**: the P316M user confirmed, after v0.0.0.10, that all
+6 outlets show up individually with correct aliases, on/off control works per-outlet, and per-outlet
+power monitoring reports realistic values (e.g. 38.0 W / 0.32 A on a loaded outlet, 0.0 W on unloaded
+ones) - matching the equipment actually plugged in. The README's Limitations section no longer lists
+this as a limitation. Still unconfirmed: the base P300 specifically (the remote-observatory user's
+report turned out to be the VLAN/network-topology issue instead - see below - not this feature), though
+there's no reason to expect it to behave differently for listing/on-off (same `get_child_device_list`/
+`control_child` mechanism) - only its lack of any energy capability (confirmed via its own test
+fixture) would differ from the P316M.
 
 ## Multi-tenant observatory VLAN limitation - a real, mostly-unfixable gap in the core premise
 

@@ -138,11 +138,6 @@ notification plugin like Ground Station for the actual push/email alert.
 
 ## Limitations
 
-- **Tapo multi-outlet power strips (e.g. the P300 family/P316M) are not currently supported - only a
-  single "whole strip" entry shows up, not the individual outlets.** Unlike Kasa's legacy power strips
-  (e.g. KP303, which are fully supported per-outlet), the KLAP protocol library this plugin depends on
-  for Tapo/newer-Kasa devices has no support for the child-outlet commands these strips use. Single
-  Tapo/newer-Kasa plugs (e.g. the P115, KP125M) are unaffected. Tracked for a possible future release.
 - **The Power reading (Watts and the derived Amps figure) is a ballpark indicator, not a precise
   measurement - don't build automation logic around exact values.** In real testing, a Tapo P115
   reading the same constant load fluctuated between 4.4 and 4.7 W from one refresh to the next, and
