@@ -17,5 +17,8 @@
     <Setting Name="LineVoltage" Type="System.Double" Scope="User">
       <Value Profile="(Default)">120</Value>
     </Setting>
+    <Setting Name="PowerStripCommandDelayMs" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">300</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

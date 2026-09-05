@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.14] - 2026-09-06
+
+### Fixed
+
+- **Typing a new TP-Link password could lock the account.** The password (and username) field used to
+  save on every keystroke, and the equipment page's background poll treats any credential change as
+  worth an immediate retry - so typing a new password could fire a rapid string of failed login
+  attempts against TP-Link's cloud, one per keystroke still visible at the next poll tick. Credentials
+  are now only saved (and only then retried) when you click the new **Save** button on the Options
+  page - nothing is written, or seen by the background poll, while you're still typing.
+- **Turning on/off several outlets of the same power strip in quick succession (e.g. "All Plugs On")
+  could make the whole strip go unreachable** (a real P316M went completely unreachable - a plain
+  network timeout, not a protocol-level rejection - consistent with the strip's own WiFi module
+  browning out/restarting under the combined load of several relays actuating almost simultaneously).
+  A pause is now inserted between commands sent to outlets of the same physical strip during a bulk
+  action.
+
+### Added
+
+- A configurable delay (Options page, default 300ms) between commands sent to outlets of the same
+  power strip during a bulk action - the right value depends on the specific hardware/electrical load,
+  so it's adjustable rather than a fixed guess.
+
 ## [0.0.0.13] - 2026-09-06
 
 ### Fixed

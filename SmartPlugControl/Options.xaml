@@ -13,15 +13,28 @@
                 <TextBlock Text="Username/email" VerticalAlignment="Center" MinWidth="160" />
                 <TextBox MinWidth="200" Text="{Binding TpLinkUsername, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                 <TextBlock Text="Password" VerticalAlignment="Center" MinWidth="160" />
                 <PasswordBox MinWidth="200" local:PasswordBoxAssistant.BoundPassword="{Binding TpLinkPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
+            <TextBlock Margin="160,0,0,5" TextWrapping="Wrap" MaxWidth="500">
+                <Run Text="Nothing above is saved, or retried by the equipment page's background poll, until you click Save - typing a new password used to save (and retry) on every keystroke, which could trip TP-Link's own rate limiting and lock the account." />
+            </TextBlock>
+            <Button Content="Save" Command="{Binding SaveCredentialsCommand}" Margin="160,0,0,15" HorizontalAlignment="Left" Padding="8,4" />
 
             <TextBlock Text="Polling" FontWeight="Bold" Margin="0,0,0,5" />
             <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                 <TextBlock Text="Equipment page refresh interval (s)" VerticalAlignment="Center" MinWidth="260" />
                 <TextBox MinWidth="80" Text="{Binding RefreshIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <TextBlock Text="Power strips" FontWeight="Bold" Margin="0,0,0,5" />
+            <TextBlock Margin="0,0,0,5" TextWrapping="Wrap" MaxWidth="500">
+                <Run Text="Pause between commands sent to individual outlets of the same multi-outlet power strip (e.g. the Tapo P316M) during a bulk action - some strips can become briefly unreachable if several outlets are switched back-to-back with no gap. If that happens on your hardware, try increasing this; lower it if 300ms feels unnecessarily slow for your strip." />
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Delay between outlets (ms)" VerticalAlignment="Center" MinWidth="260" />
+                <TextBox MinWidth="80" Text="{Binding PowerStripCommandDelayMs, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
 
             <TextBlock Text="Power display" FontWeight="Bold" Margin="0,0,0,5" />

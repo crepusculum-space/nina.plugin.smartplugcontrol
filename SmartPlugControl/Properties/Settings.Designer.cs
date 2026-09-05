@@ -88,5 +88,24 @@ namespace Crepusculum.NINA.SmartPlugControl.Properties {
                 this["LineVoltage"] = value;
             }
         }
+
+        /// <summary>Pause after each command sent to an individual outlet of a multi-outlet power strip
+        /// (e.g. the Tapo P316M), before moving on to the next outlet in a bulk action - confirmed on
+        /// real hardware that switching several outlets back-to-back with no gap could make the whole
+        /// strip go unreachable (likely the strip's own WiFi module browning out/restarting under the
+        /// combined load of several relays actuating almost simultaneously). Configurable since the
+        /// right value depends on the specific hardware/electrical load - default 300ms is a starting
+        /// point, not a value verified to be optimal for every model.</summary>
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("300")]
+        public int PowerStripCommandDelayMs {
+            get {
+                return ((int)(this["PowerStripCommandDelayMs"]));
+            }
+            set {
+                this["PowerStripCommandDelayMs"] = value;
+            }
+        }
     }
 }
