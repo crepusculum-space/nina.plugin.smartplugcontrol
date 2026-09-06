@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.17] - 2026-09-06
+
+### Changed
+
+- Updated the plugin's description (shown in NINA's Options page and plugin browser) to reflect that
+  legacy Kasa plugs are always shown/controlled regardless of network topology, that Tapo/newer-Kasa
+  plugs need local network reachability (and the VLAN caveat that can prevent it at some sites), and
+  that multi-outlet power strips are supported per outlet - it previously still described the older
+  "every device must be locally reachable" behavior.
+
 ## [0.0.0.16] - 2026-09-06
 
 ### Changed
