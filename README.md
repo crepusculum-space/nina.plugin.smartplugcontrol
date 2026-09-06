@@ -73,8 +73,10 @@ Smart Plug Control is listed in NINA's official plugin repository - the easiest 
 ## Setup
 
 1. Open **Options → Plugins → Smart Plug Control**.
-2. Enter your TP-Link account username/email and password. The password is encrypted on disk and
-   never shown in plain text.
+2. Enter your TP-Link account username/email and password, then click **Save**. Nothing is saved (or
+   attempted) before you click it - typing is not enough, and that's deliberate: retrying a login on
+   every keystroke of a password change once got a real user's TP-Link account locked out. The
+   password is encrypted on disk and never shown in plain text.
 3. Click **Refresh Plug List** to pull every device on your account. Your TP-Link account may have
    devices unrelated to your observatory (a home TV, a printer) - uncheck **Visible in NINA** for
    any plug that shouldn't show up in the equipment page or sequencer.
@@ -150,12 +152,17 @@ notification plugin like Ground Station for the actual push/email alert.
 ## Settings
 
 **Options → Plugins → Smart Plug Control:**
-- TP-Link account credentials.
+- TP-Link account credentials (see Setup above - saved only when you click **Save**).
 - Line voltage (V) - used only to show an estimated Amps figure next to the Watts reading in the
   equipment page's Power column (e.g. "4.4 W / 0.04 A"). Purely a display convenience (P = V × I on
   the AC side) - unrelated to the Max A@12V consumption-alert threshold on the equipment page, which
   is a different voltage domain entirely (downstream DC equipment, not the AC line).
 - Equipment page refresh interval (seconds).
+- Delay between outlets (ms) - a pause between commands sent to individual outlets of the same
+  multi-outlet power strip during a bulk action (e.g. "All Plugs On"). Some strips can become briefly
+  unreachable if several outlets are switched back-to-back with no gap (confirmed on real hardware);
+  the right value depends on the specific strip/electrical load, so it's adjustable rather than a
+  fixed guess - default 300ms.
 
 ## Limitations
 
