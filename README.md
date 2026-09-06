@@ -65,8 +65,8 @@ Smart Plug Control is listed in NINA's official plugin repository - the easiest 
    kill the process, and a still-running NINA will keep a lock on files you're trying to replace).
 3. Make sure `%LOCALAPPDATA%\NINA\Plugins\3.0.0\` exists (create it if it doesn't), then place the
    extracted plugin folder (containing `Crepusculum.NINA.SmartPlugControl.dll` and its dependencies)
-   directly inside it - e.g.
-   `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Crepusculum.NINA.SmartPlugControl\Crepusculum.NINA.SmartPlugControl.dll`.
+   directly inside a `Smart Plug Control` folder there - e.g.
+   `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Smart Plug Control\Crepusculum.NINA.SmartPlugControl.dll`.
    Don't just copy the zip file itself into that folder - it must be extracted first.
 4. Start NINA. The plugin appears under **Options → Plugins** as "Smart Plug Control".
 
@@ -186,8 +186,8 @@ dotnet build SmartPlugControl/SmartPlugControl.csproj
 ```
 
 NINA must be fully closed while building - the build's post-build step copies the output straight
-into `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Crepusculum.NINA.SmartPlugControl\`, and it will fail loudly
-(rather than silently deploy nothing) if NINA still has the DLL locked.
+into `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Smart Plug Control\`, and it will fail loudly (rather than
+silently deploy nothing) if NINA still has the DLL locked.
 
 ## Changelog
 

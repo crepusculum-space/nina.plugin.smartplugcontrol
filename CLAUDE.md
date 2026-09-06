@@ -85,11 +85,11 @@ this site only; control is then routed per-device by protocol, not by any user-f
   table - even devices that never answer ICMP still trigger the underlying ARP resolution needed to
   attempt routing to them. `PlugRegistryService.RefreshAsync` then resolves each cloud device's known
   `DeviceMac` against that ARP cache via `TapoConnect.Util.TapoUtils.TryGetIpAddressByMacAddress`
-  (already a project dependency, reads `arp -a` - no ARP parsing was hand-rolled). A device whose MAC
-  can't be resolved locally is **excluded entirely** from both `Plugs` and `AllPlugs` - not hidden,
-  gone - since it isn't physically at this site.
-  **Update: this exclusion now applies only to `SMART.*`/KLAP devices, not `IOT.*`/legacy Kasa ones -
-  see the "Multi-tenant observatory VLAN limitation" section below for why.**
+  (already a project dependency, reads `arp -a` - no ARP parsing was hand-rolled).
+  **Update: this description is stale - see the "Multi-tenant observatory VLAN limitation" section
+  below for the full current picture. Short version: nothing is "excluded entirely" from `Plugs`/
+  `AllPlugs` on a resolution/connection failure anymore, for either protocol family - a device that
+  can't be resolved/reached still shows up, with an unknown/"Off Line" state instead of a live one.**
 - **Control routing** (`PlugRegistryService.RefreshAsync`, by `DeviceType` prefix):
   - `IOT.*` (legacy Kasa, e.g. HS103/KP303) → unchanged cloud-relay path
     (`KasaCloudPlugDriverFactory`/`KasaCloudPlugDriver`/`KasaCloudPassthroughClient`).
@@ -376,8 +376,16 @@ to).
   to prevent), there is no IP this plugin could ever reach it at. This is a real, hard limitation of
   the multi-tenant-with-per-client-VLANs deployment pattern specifically - the actual fix is
   operational, not code: whoever runs the site needs to put a client's Tapo/newer-Kasa smart plugs on
-  that **same client's** VLAN, not a shared site-wide WiFi network. Not yet documented anywhere
-  user-facing (README) - should be, once the legacy-Kasa fix above is confirmed with real users.
+  that **same client's** VLAN, not a shared site-wide WiFi network. Documented in the README (network
+  requirements section) and confirmed with real users at two sites.
+  **Update (v0.0.0.12): a KLAP device in this situation is no longer excluded from the list either -**
+  `PlugRegistryService.RefreshAsync` now shows it with an unknown state ("Off Line" on the equipment
+  page) instead of disappearing, the same fallback already used for a legacy Kasa device whose
+  cloud-relay call fails. This makes "on the account but currently unreachable" distinguishable from
+  "not on this account at all" - real user reports showed a device vanishing with zero diagnostic
+  trace was itself confusing, independent of whatever the underlying reachability problem turned out
+  to be (VLAN, a wrong-case TP-Link username, "Third-Party Compatibility" disabled in the Tapo app,
+  etc. - see the gotcha on KLAP login failures below).
 
 ## Settings page (Phase 7, done)
 
@@ -678,7 +686,7 @@ requires `FeaturedImageURL` to be a valid URI, no dimension constraint.
   Conditions/Triggers were debugged as if they had a MEF-loading bug that didn't actually exist. Fixed:
   `/c` removed, so a locked file now fails the build loudly instead of silently no-opping. **If you
   ever change plugin code and it doesn't seem to take effect in NINA, first compare
-  `Get-FileHash` on the build output vs `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Crepusculum.NINA.SmartPlugControl\Crepusculum.NINA.SmartPlugControl.dll`
+  `Get-FileHash` on the build output vs `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Smart Plug Control\Crepusculum.NINA.SmartPlugControl.dll`
   before assuming there's a real bug.** If the build fails with `MSB3073`/"Sharing violation", check
   `Get-Process | Where-Object ProcessName -match "NINA"` for a lingering process and kill it.
 - **Don't trust a reference library's code without cross-checking a second source.** The LED command
@@ -730,9 +738,11 @@ requires `FeaturedImageURL` to be a valid URI, no dimension constraint.
 
 - `SmartPlugControl/SmartPlugControl.csproj` — the actual plugin project (net8.0-windows, WPF). Its
   `PostBuild` target xcopies the whole output directory to
-  `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Crepusculum.NINA.SmartPlugControl\` automatically on every build
-  **and now fails loudly if that copy can't complete** (e.g. NINA still running) - see gotchas above.
-  NINA must be fully closed (check for a lingering process, not just the window) before rebuilding.
+  `%LOCALAPPDATA%\NINA\Plugins\3.0.0\Smart Plug Control\` (the `PluginDeployName` MSBuild property -
+  matches the official repo's own installer folder name, so a dev build and an official install never
+  produce two simultaneous plugin instances) automatically on every build **and now fails loudly if
+  that copy can't complete** (e.g. NINA still running) - see gotchas above. NINA must be fully closed
+  (check for a lingering process, not just the window) before rebuilding.
 - `SmartPlugControlCloud/` — TP-Link cloud discovery (`TpLinkCloudClient`) and Kasa cloud device
   control (`KasaCloudPassthroughClient`). `SecureCredentialStore` DPAPI-encrypts the stored password.
 - `SmartPlugControlDrivers/` — `IPlugDriver` abstraction + `KasaCloudPlugDriver`/

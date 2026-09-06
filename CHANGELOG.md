@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.0.18] - 2026-09-06
+
+### Changed
+
+- Documentation-only fixes found during a full audit for stale claims, after the plugin description
+  fix in 0.0.0.17:
+  - README and CLAUDE.md both still referenced the old `Crepusculum.NINA.SmartPlugControl` dev-build
+    deploy folder name, superseded by `Smart Plug Control` a while back (the fix that resolved "2
+    plugin instances" showing up in NINA).
+  - CLAUDE.md still described a KLAP or legacy Kasa device that can't be resolved/reached as
+    "excluded entirely" from the plug list - superseded by the 0.0.0.12 fix that shows it as an
+    unknown/"Off Line" entry instead.
+  - `scripts/manifest-template.json`'s LongDescription still had the same stale network-requirements
+    text already fixed in the shipped plugin's own description in 0.0.0.17 - would have reintroduced
+    it the next time this template is used for a manifest update.
+  No functional/code changes in this release.
+
 ## [0.0.0.17] - 2026-09-06
 
 ### Changed
